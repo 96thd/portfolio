@@ -1,0 +1,75 @@
+name: Build Portfolio PDF
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'js/works.js'
+      - 'pdf.html'
+      - '.github/workflows/build-pdf.yml'
+  workflow_dispatch:  # 수동 실행 가능
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Puppeteer
+        run: npm install puppeteer@latest
+
+      - name: Build PDF
+        run: |
+          cat > build.js << 'EOF'
+          const puppeteer = require('puppeteer');
+          const path = require('path');
+
+          (async () => {
+            const browser = await puppeteer.launch({
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1920, height: 1080 }); // 16:9
+
+            const fileUrl = 'file://' + path.resolve('pdf.html');
+            await page.goto(fileUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+
+            // 이미지 로드 완료 대기
+            await page.waitForFunction('window.__pdfReady === true', { timeout: 60000 });
+            await new Promise(r => setTimeout(r, 1500)); // 폰트 + 렌더 안정화
+
+            await page.pdf({
+              path: 'portfolio.pdf',
+              width: '360mm',
+              height: '202.5mm',
+              printBackground: true,
+              preferCSSPageSize: true,
+              margin: { top: 0, right: 0, bottom: 0, left: 0 }
+            });
+
+            await browser.close();
+            console.log('PDF generated successfully');
+          })();
+          EOF
+          node build.js
+
+      - name: Commit PDF
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add portfolio.pdf
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: rebuild portfolio.pdf [skip ci]"
+            git push
+          fi

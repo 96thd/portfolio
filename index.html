@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PORTFOLIO — SUHO SONG</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/intro.css">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+KR:wght@700&family=Noto+Sans+SC:wght@700&family=Noto+Sans+JP:wght@700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div id="scroll-driver"></div>
+<canvas id="bg-canvas"></canvas>
+<div id="scroll-hint">SCROLL</div>
+
+<div id="stage-ui">
+  <div id="left">
+    <h1>SUHO<br>SONG</h1>
+    <div class="sub">MV PRODUCER</div>
+    <span class="tag">PORTFOLIO</span>
+    <a class="ig" href="https://www.instagram.com/96thd/" target="_blank">@96thd</a>
+    <div class="desc">
+      <p>Crafting visuals for music</p>
+      <p>Based in Seoul, Korea</p>
+      <p>Open for collaboration</p>
+    </div>
+    <a id="pdf-download" href="portfolio.pdf" download target="_blank">↓ DOWNLOAD PDF</a>
+  </div>
+  <div id="works-label"></div>
+  <div id="info">
+    <div id="info-title"></div>
+    <div id="info-role">as a Producer</div>
+  </div>
+</div>
+
+<div id="cards-wrap"></div>
+
+<div id="modal-bg" onclick="closeModal(event)">
+  <div id="modal">
+    <button id="modal-close" onclick="closeModal()">✕ &nbsp;CLOSE</button>
+    <iframe id="modal-iframe" src="" allowfullscreen
+            allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+    <div id="modal-info">
+      <span id="modal-title"></span>
+      <span id="modal-role">AS A PRODUCER</span>
+    </div>
+  </div>
+</div>
+
+<script src="js/works.js"></script>
+<script src="js/core.js"></script>
+<script src="js/bg.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/events.js"></script>
+<script src="js/intro.js"></script>
+</body>
+</html>
