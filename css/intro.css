@@ -1,0 +1,19 @@
+/* ═══════════════════════════════════════════
+   INTRO LAYER
+═══════════════════════════════════════════ */
+body.intro-active { overflow: hidden; }
+
+#intro-layer { position: fixed; inset: 0; z-index: 9; overflow: hidden; }
+
+#intro-hint {
+  position: absolute; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  font-family: monospace; font-size: 11px; letter-spacing: 0.3em;
+  color: rgba(160,158,154,0.65);
+  animation: hintPulse 1.6s ease-in-out infinite;
+  pointer-events: none; z-index: 10; transition: opacity 0.2s;
+}
+@keyframes hintPulse {
+  0%,100% { opacity:.5; transform:translate(-50%,0); }
+  50%     { opacity:1;  transform:translate(-50%,-5px); }
+}
