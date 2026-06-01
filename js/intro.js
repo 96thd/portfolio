@@ -20,7 +20,7 @@
     el.style.cssText =
       `position:absolute;top:${top};left:50%;transform:translate(-50%,-50%);` +
       `font-family:"Bebas Neue","Noto Sans KR",sans-serif;font-size:${fs}px;` +
-      `font-weight:700;letter-spacing:-0.02em;line-height:1;white-space:nowrap;` +
+      `font-weight:500;letter-spacing:-0.02em;line-height:1;white-space:nowrap;` +
       `user-select:none;will-change:transform,opacity;color:${color};`;
     return el;
   }
