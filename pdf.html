@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>PORTFOLIO — SUHO SONG (PDF)</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 16:9 page = 360mm × 202.5mm */
+  @page {
+    size: 360mm 202.5mm;
+    margin: 0;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: #2c2c29;
+    color: #f0ede8;
+    font-family: 'DM Mono', 'Noto Sans KR', 'Noto Sans SC', 'Noto Sans JP', monospace;
+  }
+  /* 매 페이지 시트 전체를 덮는 고정 배경 — 페이지 하단 1~2px 흰줄(서브픽셀 갭) 방지.
+     시트보다 약간 크게(-3mm) 빼서 모든 가장자리까지 확실히 덮음. */
+  .sheet-bg {
+    position: fixed;
+    top: -3mm; left: -3mm; right: -3mm; bottom: -3mm;
+    background: #2c2c29;
+    z-index: -1;
+  }
+
+  .page {
+    width: 360mm;
+    height: 202.5mm;
+    padding: 9mm 13mm;
+    background: #2c2c29;
+    page-break-after: always;
+    break-after: page;
+    position: relative;
+    overflow: hidden;
+  }
+  .page:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  .cover h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 140px;
+    line-height: 0.88;
+    letter-spacing: 0.04em;
+    color: #f0ede8;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .cover .sub {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 0.04em;
+    color: #f0ede8;
+    margin-bottom: 70px;
+    position: relative;
+  }
+  .cover .tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #cccccc;
+    margin-bottom: 14px;
+  }
+  .cover .ig {
+    font-family: 'DM Mono', monospace;
+    font-size: 15px;
+    letter-spacing: 0.1em;
+    color: #f0ede8;
+    margin-bottom: 40px;
+  }
+  .cover .desc p {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    color: #aaaaaa;
+    text-transform: uppercase;
+    line-height: 1.9;
+  }
+
+  /* ── Works grid ── */
+  .works-page {
+    display: flex;
+    flex-direction: column;
+  }
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4mm;
+    padding-bottom: 2mm;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
+  }
+  .page-header .title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px;
+    letter-spacing: 0.1em;
+    color: #f0ede8;
+    position: relative;
+  }
+  .page-header .pageno {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: #888880;
+  }
+  .grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 84mm);
+    grid-template-rows: repeat(3, 1fr);
+    justify-content: center;
+    gap: 4mm 5mm;
+    min-height: 0;
+  }
+  /* item 자체는 배경 없음 — 썸네일과 제목만 자연스럽게 배치 */
+  .item {
+    display: flex;
+    flex-direction: column;
+    width: 84mm;
+    text-decoration: none;
+    color: inherit;
+    background: transparent;
+  }
+  .item .thumb {
+    width: 84mm;
+    height: 47.25mm;
+    background: #222220;
+    border-radius: 0;
+    overflow: hidden;
+    flex-shrink: 0;
+    /* 1px 테두리 + 아주 은은한 글로우.
+       PDF-safe: 밝은색 rgba만 사용 — 검정 rgba box-shadow는 Puppeteer/Skia에서
+       불투명 검은 박스로 렌더되므로 절대 사용 금지. */
+    box-shadow:
+      0 0 0 1px rgba(240,237,232,0.12),
+      0 0 7px 1px rgba(240,237,232,0.05);
+  }
+  .item .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  /* 제목: 카드 외부, 왼쪽 정렬, 자연스러운 위치 */
+  .item .title {
+    font-family: 'Noto Sans KR', 'Noto Sans SC', 'Noto Sans JP', sans-serif;
+    font-size: 9px;
+    font-weight: 400;
+    line-height: 1.35;
+    color: rgba(240,237,232,0.72);
+    margin-top: 5px;
+    text-align: left;
+    background: transparent;
+  }
+</style>
+</head>
+<body>
+<div class="sheet-bg"></div>
+<div id="root"></div>
+
+<script src="js/works.js"></script>
+<script>
+(function() {
+  const PER_PAGE = 9;
+  const root = document.getElementById('root');
+
+  // ── Cover ──
+  const cover = document.createElement('div');
+  cover.className = 'page cover';
+  cover.innerHTML = `
+    <h1>SUHO<br>SONG</h1>
+    <div class="sub">MV PRODUCER</div>
+    <div class="tag">PORTFOLIO</div>
+    <div class="ig">@96thd</div>
+    <div class="desc">
+      <p>Crafting visuals for music</p>
+      <p>Based in Seoul, Korea</p>
+      <p>Open for collaboration</p>
+    </div>
+  `;
+  root.appendChild(cover);
+
+  // ── Works pages ──
+  const realWorks = works.filter(w => w.id);
+  const totalPages = Math.ceil(realWorks.length / PER_PAGE);
+  for (let p = 0; p < totalPages; p++) {
+    const page = document.createElement('div');
+    page.className = 'page works-page';
+    const slice = realWorks.slice(p * PER_PAGE, (p + 1) * PER_PAGE);
+
+    const items = slice.map(w => `
+      <a class="item" href="https://youtu.be/${w.id}" target="_blank" rel="noopener">
+        <div class="thumb">
+          <img src="https://i.ytimg.com/vi/${w.id}/maxresdefault.jpg"
+               onerror="this.src='https://i.ytimg.com/vi/${w.id}/hqdefault.jpg'"
+               crossorigin="anonymous">
+        </div>
+        <div class="title">${escapeHtml(w.title)}</div>
+      </a>
+    `).join('');
+
+    page.innerHTML = `
+      <div class="page-header">
+        <div class="title">WORKS</div>
+        <div class="pageno">${p + 1} / ${totalPages}</div>
+      </div>
+      <div class="grid">${items}</div>
+    `;
+    root.appendChild(page);
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ── Glow via SVG filter (PDF-safe, text-shadow 깨짐 방지) ──
+  const glowFilter = (id, std, slope, pad) => `
+    <filter id="${id}" x="-${pad}%" y="-${pad}%" width="${100 + pad * 2}%" height="${100 + pad * 2}%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="${std}" result="b"/>
+      <feComponentTransfer in="b" result="d"><feFuncA type="linear" slope="${slope}"/></feComponentTransfer>
+      <feMerge><feMergeNode in="d"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>`;
+  const svgDefs = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svgDefs.setAttribute('width','0'); svgDefs.setAttribute('height','0');
+  svgDefs.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden;';
+  svgDefs.innerHTML = `<defs>${glowFilter('glow-lg',2.8,0.45,25)}${glowFilter('glow-md',1.8,0.38,20)}${glowFilter('glow-sm',1.2,0.30,15)}</defs>`;
+  document.body.prepend(svgDefs);
+
+  document.querySelector('.cover h1').style.filter   = 'url(#glow-lg)';
+  document.querySelector('.cover .sub').style.filter = 'url(#glow-md)';
+  document.querySelectorAll('.page-header .title').forEach(el => el.style.filter = 'url(#glow-sm)');
+
+  // 모든 이미지 + 폰트 로드 완료 시 신호
+  Promise.all([
+    document.fonts.ready,
+    new Promise(resolve => {
+      const imgs = document.querySelectorAll('img');
+      if (imgs.length === 0) return resolve();
+      let loaded = 0;
+      const check = () => { if (++loaded >= imgs.length) resolve(); };
+      imgs.forEach(img => {
+        if (img.complete) check();
+        else { img.addEventListener('load', check); img.addEventListener('error', check); }
+      });
+    })
+  ]).then(() => {
+    window.__pdfReady = true;
+    document.body.dataset.ready = 'true';
+  });
+})();
+</script>
+</body>
+</html>
