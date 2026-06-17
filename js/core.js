@@ -20,8 +20,6 @@ window.App = (function () {
     LIGHT_BG    : '#f5f4f0',
   };
   const isLight = (() => { try { return matchMedia('(prefers-color-scheme:light)').matches; } catch (e) { return false; } })();
-  document.documentElement.classList.toggle('force-light',  isLight);
-  document.documentElement.classList.toggle('force-dark',  !isLight);
 
   C.isLight = isLight;
   C.COL_BG  = isLight ? C.DARK_BG  : C.LIGHT_BG;  // 사라지는 패널
