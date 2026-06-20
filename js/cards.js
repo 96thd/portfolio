@@ -53,6 +53,8 @@
   });
   App.cardEls = cardEls;  // events.js에서 클릭 핸들링 시 참조
 
+  let lastCW = -1, lastCH = -1;  // 카드 크기 캐시 — 변할 때만 width/height 기록
+
   /* ─── 레이아웃 ─── */
   function getLV() {
     const vw = innerWidth, vh = innerHeight;
@@ -112,6 +114,12 @@
     const CX = S.AX + R_CARD, CY = S.AY;
     posUI(CW, CH, narrow, hP);
 
+    if (CW !== lastCW || CH !== lastCH) {
+      const wpx = CW + 'px', hpx = CH + 'px';
+      for (let i = 0; i < N; i++) { cardEls[i].style.width = wpx; cardEls[i].style.height = hpx; }
+      lastCW = CW; lastCH = CH;
+    }
+
     const introOff   = (1 - eOut4(hP)) * CDEG;
     const cardReveal = hP < 0.55 ? 0 : eOut4((hP - 0.55) / 0.45);
     const uiReveal   = hP < 0.85 ? 0 : eOut3((hP - 0.85) / 0.15);
@@ -125,7 +133,6 @@
       const ang = (180 - off * STEP) + introOff;
       const rad = ang * Math.PI / 180;
       const cx = CX + R_CARD * Math.cos(rad), cy = CY + R_CARD * Math.sin(rad);
-      card.style.width = CW + 'px'; card.style.height = CH + 'px';
       card.style.transform = `translate3d(${Math.round(cx - CW / 2)}px,${Math.round(cy - CH / 2)}px,0) rotate(${(ang + 180).toFixed(2)}deg)`;
       card.style.zIndex = Math.round(20 - abs);
 
