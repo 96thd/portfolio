@@ -75,7 +75,6 @@ const works = [
   { id: 'SPYX2y4NzTU', title: '[MV] 이달의 소녀 (LOONA) "Flip That"' },
   { id: 'sMG9t39BwUU', title: "KARD - Ring The Alarm _ M/V" },
   { id: 'dTX-6WdiXx8', title: "Rocket Punch Japan 1st Single Fiore M/V" },
-  { id: 'S1K06BmGm_o', title: "LE SSERAFIM (르세라핌) 'FEARLESS' @ CDTV LIVE! LIVE!" },
   { id: '9ixJZM_4EKg', title: "CHOA(초아) 'Yesterday' Official MV" },
   { id: 'uGJoFdgE6ts', title: "MV | 나훈아(Na Hoon-A) - Change(체인지) | 일곱 빛 향기" },
   { id: 'YKKh8d4wZbU', title: "Billlie | 'GingaMingaYo (the strange world)' M/V" },
