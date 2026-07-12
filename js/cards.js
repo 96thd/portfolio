@@ -149,11 +149,21 @@
       const off = i - frac, abs = Math.abs(off), card = cardEls[i];
       if (abs <= 17) ensureThumb(card);  // 더미 카드는 _thumb 없음 → 자동 no-op
       if (abs > 14) { if (card.style.display !== 'none') card.style.display = 'none'; continue; }
-      if (card.style.display === 'none') card.style.display = '';
 
       const ang = (180 - off * STEP) + introOff;
       const rad = ang * Math.PI / 180;
       const cx = CX + R_CARD * Math.cos(rad), cy = CY + R_CARD * Math.sin(rad);
+
+      // 뷰포트 컬링: 화면 밖 카드는 렌더링/합성 제외.
+      // abs≤14로는 ~29장이 항상 레이어로 살아있는데 실제 화면엔 7~9장만 보임.
+      // 회전 여유분으로 카드 폭 65%를 마진으로 둠.
+      const m = CW * 0.65;
+      if (cx < -m || cx > innerWidth + m || cy < -m || cy > innerHeight + m) {
+        if (card.style.display !== 'none') card.style.display = 'none';
+        continue;
+      }
+      if (card.style.display === 'none') card.style.display = '';
+
       const tf = `translate3d(${Math.round(cx - CW / 2)}px,${Math.round(cy - CH / 2)}px,0) rotate(${(ang + 180).toFixed(2)}deg)`;
       if (tf !== card._lastTf) { card.style.transform = tf; card._lastTf = tf; }
       const z = Math.round(20 - abs);
