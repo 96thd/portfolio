@@ -39,9 +39,11 @@
     const ov = document.createElement('div'); ov.className = 'card-overlay';
     ov.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0);pointer-events:none;';
     card.appendChild(ov);
+    card._ov = ov;  // 매 프레임 querySelector 방지용 캐시
     const bd = document.createElement('div'); bd.className = 'card-border';
     bd.style.cssText = 'position:absolute;inset:0;border-radius:12px;border:1px solid rgba(255,255,255,.12);pointer-events:none;box-sizing:border-box;';
     card.appendChild(bd);
+    card._bd = bd;
   }
 
   const cardEls = works.map((w, i) => {
@@ -54,41 +56,60 @@
   App.cardEls = cardEls;  // events.js에서 클릭 핸들링 시 참조
 
   let lastCW = -1, lastCH = -1;  // 카드 크기 캐시 — 변할 때만 width/height 기록
+  let lastCi = -1, lastSc = -1, lastRv = '';  // 인포 텍스트 캐시
 
   /* ─── 레이아웃 ─── */
+  let lvCache = null, lvW = 0, lvH = 0;  // 뷰포트가 변할 때만 재계산
   function getLV() {
     const vw = innerWidth, vh = innerHeight;
+    if (lvCache && vw === lvW && vh === lvH) return lvCache;
+    lvW = vw; lvH = vh;
     const cw = Math.min(Math.min(Math.round(vw * .91), 910), Math.round(vh * .65 * 16 / 9));
     const ch = Math.round(cw * 9 / 16);
     const wax = Math.round(vw * CARD_AX_R);
     const narrow = (wax - cw / 2) - 48 < 230 || (vw - (wax + cw / 2)) < 200 || ((vh - ch) / 2) < 80;
-    return { cw, ch, ax: narrow ? Math.round(vw / 2) : wax, narrow };
+    lvCache = { cw, ch, ax: narrow ? Math.round(vw / 2) : wax, narrow };
+    return lvCache;
   }
 
+  let lastLayoutKey = '', lastUiOp = '';  // 레이아웃/투명도 캐시 — 변할 때만 DOM 기록
   function posUI(CW, CH, narrow, hP) {
     const L = $('left'), wl = $('works-label'), inf = $('info');
     const cl = S.AX - CW / 2, ct = S.AY - CH / 2, cb = S.AY + CH / 2;
-    const wfs = Math.max(20, Math.round(64 * (CW / 680)));
 
-    const uiOp = (hP < 0.85 ? 0 : eOut3((hP - 0.85) / 0.15)).toFixed(3);
-    const uiPE = uiOp > 0.1 ? 'auto' : 'none';
+    const uiOpNum = hP < 0.85 ? 0 : eOut3((hP - 0.85) / 0.15);
+    const uiOp = uiOpNum.toFixed(3);
+    const uiPE = uiOpNum > 0.1 ? 'auto' : 'none';
 
-    wl.textContent  = 'WORKS';
-    wl.style.fontSize = wfs + 'px';
-    wl.style.width    = CW + 'px';
-    wl.style.left     = cl + 'px';
-    wl.style.top      = Math.max(16, ct - wfs) + 'px';
-    wl.style.opacity  = uiOp;
+    // 레이아웃 입력이 변한 프레임에만 cssText 재작성 (매 프레임 재작성 = 모바일 잔버벅임 원인)
+    const layoutKey = CW + ',' + CH + ',' + S.AX + ',' + S.AY + ',' + narrow + ',' + uiPE;
+    if (layoutKey !== lastLayoutKey) {
+      lastLayoutKey = layoutKey;
+      const wfs = Math.max(20, Math.round(64 * (CW / 680)));
+      wl.textContent  = 'WORKS';
+      wl.style.fontSize = wfs + 'px';
+      wl.style.width    = CW + 'px';
+      wl.style.left     = cl + 'px';
+      wl.style.top      = Math.max(16, ct - wfs) + 'px';
 
-    if (!narrow) {
-      const cr = S.AX + CW / 2, lw = Math.max(100, cl - 32);
-      L.style.cssText   = `position:absolute;width:${lw}px;left:${cl - lw - 16}px;top:50%;transform:translateY(-50%);text-align:right;pointer-events:${uiPE};z-index:10;opacity:${uiOp};`;
-      inf.style.cssText = `position:absolute;left:${cr + 24}px;width:${Math.max(0, innerWidth - cr - 32)}px;top:${S.AY}px;transform:translateY(-50%);z-index:10;pointer-events:none;max-height:${CH}px;overflow:hidden;text-align:left;opacity:${uiOp};`;
-      L.classList.remove('narrow'); inf.classList.remove('narrow');
-    } else {
-      L.style.cssText   = `position:fixed;top:16px;left:16px;width:auto;text-align:left;transform:none;pointer-events:${uiPE};z-index:10;opacity:${uiOp};`;
-      inf.style.cssText = `position:absolute;left:${cl}px;width:${CW}px;top:${cb + 12}px;transform:none;z-index:10;pointer-events:none;text-align:center;opacity:${uiOp};`;
-      L.classList.add('narrow'); inf.classList.add('narrow');
+      if (!narrow) {
+        const cr = S.AX + CW / 2, lw = Math.max(100, cl - 32);
+        L.style.cssText   = `position:absolute;width:${lw}px;left:${cl - lw - 16}px;top:50%;transform:translateY(-50%);text-align:right;pointer-events:${uiPE};z-index:10;`;
+        inf.style.cssText = `position:absolute;left:${cr + 24}px;width:${Math.max(0, innerWidth - cr - 32)}px;top:${S.AY}px;transform:translateY(-50%);z-index:10;pointer-events:none;max-height:${CH}px;overflow:hidden;text-align:left;`;
+        L.classList.remove('narrow'); inf.classList.remove('narrow');
+      } else {
+        L.style.cssText   = `position:fixed;top:16px;left:16px;width:auto;text-align:left;transform:none;pointer-events:${uiPE};z-index:10;`;
+        inf.style.cssText = `position:absolute;left:${cl}px;width:${CW}px;top:${cb + 12}px;transform:none;z-index:10;pointer-events:none;text-align:center;`;
+        L.classList.add('narrow'); inf.classList.add('narrow');
+      }
+      lastUiOp = '';  // cssText가 opacity를 지웠으므로 아래에서 강제 재적용
+    }
+
+    if (uiOp !== lastUiOp) {
+      lastUiOp = uiOp;
+      wl.style.opacity  = uiOp;
+      L.style.opacity   = uiOp;
+      inf.style.opacity = uiOp;
     }
   }
 
@@ -133,33 +154,51 @@
       const ang = (180 - off * STEP) + introOff;
       const rad = ang * Math.PI / 180;
       const cx = CX + R_CARD * Math.cos(rad), cy = CY + R_CARD * Math.sin(rad);
-      card.style.transform = `translate3d(${Math.round(cx - CW / 2)}px,${Math.round(cy - CH / 2)}px,0) rotate(${(ang + 180).toFixed(2)}deg)`;
-      card.style.zIndex = Math.round(20 - abs);
+      const tf = `translate3d(${Math.round(cx - CW / 2)}px,${Math.round(cy - CH / 2)}px,0) rotate(${(ang + 180).toFixed(2)}deg)`;
+      if (tf !== card._lastTf) { card.style.transform = tf; card._lastTf = tf; }
+      const z = Math.round(20 - abs);
+      if (z !== card._lastZ) { card.style.zIndex = z; card._lastZ = z; }
 
+      const op = hP >= 1 ? '1' : String(Math.max(0, cardReveal - abs * 0.08));
       if (card.dataset.dummy) {
-        if (card._dummyTx) card._dummyTx.style.fontSize = Math.round(clamp(CW * 0.075, 18, 52)) + 'px';
-        card.style.opacity = hP >= 1 ? '1' : String(Math.max(0, cardReveal - abs * 0.08));
+        if (card._dummyTx) {
+          const dfs = Math.round(clamp(CW * 0.075, 18, 52)) + 'px';
+          if (dfs !== card._lastDfs) { card._dummyTx.style.fontSize = dfs; card._lastDfs = dfs; }
+        }
+        if (op !== card._lastOp) { card.style.opacity = op; card._lastOp = op; }
         continue;
       }
 
-      const ov = card.querySelector('.card-overlay');
-      const bd = card.querySelector('.card-border');
-      if (abs < .5) {
-        ov.style.background = 'rgba(0,0,0,0)';
-        bd.style.border     = isLight ? '2px solid rgba(0,0,0,.55)' : '2px solid rgba(255,255,255,.85)';
-        card.style.boxShadow = isLight ? '0 0 40px rgba(0,0,0,.06)' : '0 0 40px rgba(255,255,255,.08)';
-      } else {
-        ov.style.background = dimRGBA(abs);
-        bd.style.border     = isLight ? '1px solid rgba(0,0,0,.08)' : '1px solid rgba(255,255,255,.10)';
-        card.style.boxShadow = 'none';
+      const isCenter = abs < .5;
+      const ovBg = isCenter ? 'rgba(0,0,0,0)' : dimRGBA(abs);
+      if (ovBg !== card._lastOvBg) { card._ov.style.background = ovBg; card._lastOvBg = ovBg; }
+      if (isCenter !== card._lastCenter) {
+        card._lastCenter = isCenter;
+        if (isCenter) {
+          card._bd.style.border  = isLight ? '2px solid rgba(0,0,0,.55)' : '2px solid rgba(255,255,255,.85)';
+          card.style.boxShadow   = isLight ? '0 0 40px rgba(0,0,0,.06)' : '0 0 40px rgba(255,255,255,.08)';
+        } else {
+          card._bd.style.border  = isLight ? '1px solid rgba(0,0,0,.08)' : '1px solid rgba(255,255,255,.10)';
+          card.style.boxShadow   = 'none';
+        }
       }
-      card.style.opacity = hP >= 1 ? '1' : String(Math.max(0, cardReveal - abs * 0.08));
+      if (op !== card._lastOp) { card.style.opacity = op; card._lastOp = op; }
     }
 
     const ci = ((Math.round(frac) % N) + N) % N;
     const sc = clamp(CW / 680, .65, 1);
+    const rv = uiReveal.toFixed(3);
     const it = $('info-title'), ir = $('info-role');
-    if (it) { it.textContent = works[ci].title || ''; it.style.fontSize = Math.round(18 * sc) + 'px'; it.style.opacity = uiReveal.toFixed(3); }
-    if (ir) { ir.style.fontSize = Math.round(13 * sc) + 'px'; ir.style.opacity = uiReveal.toFixed(3); }
+    if (it && (ci !== lastCi || sc !== lastSc)) {
+      it.textContent = works[ci].title || '';
+      it.style.fontSize = Math.round(18 * sc) + 'px';
+      if (ir) ir.style.fontSize = Math.round(13 * sc) + 'px';
+      lastCi = ci; lastSc = sc;
+    }
+    if (rv !== lastRv) {
+      if (it) it.style.opacity = rv;
+      if (ir) ir.style.opacity = rv;
+      lastRv = rv;
+    }
   };
 })();
