@@ -20,7 +20,12 @@
   const REENTER_THRESH = 60;
 
   // 인트로 완료에 필요한 누적 스크롤 거리. 작을수록 빨리 끝남.
-  function introDist() { return Math.max(700, innerHeight * 1.3); }
+  // 터치 기기는 스와이프 피로가 크므로 훨씬 짧게 (스와이프 약 1회 분량).
+  const isCoarse = (() => { try { return matchMedia('(pointer:coarse)').matches; } catch (e) { return false; } })();
+  function introDist() {
+    return isCoarse ? Math.max(480, innerHeight * 0.85)
+                    : Math.max(700, innerHeight * 1.3);
+  }
 
   function calcFontSize() {
     return Math.max(80, Math.min(innerWidth * 0.28, innerHeight * 0.30));
@@ -69,13 +74,18 @@
     if (window.App && App.S) App.S.heroPTgt = prog;
   }
 
-  function onWheel(e) { e.preventDefault(); addInput(e.deltaY); }
+  // Firefox 등은 deltaMode가 line(1)/page(2) 단위 → px로 정규화
+  function normDY(e) {
+    return e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * innerHeight : e.deltaY;
+  }
+
+  function onWheel(e) { e.preventDefault(); addInput(normDY(e)); }
   function onTouchStart(e) { touchY = e.touches[0].clientY; }
   function onTouchMove(e) {
     e.preventDefault();
     if (touchY === null) { touchY = e.touches[0].clientY; return; }
     const y = e.touches[0].clientY;
-    addInput((touchY - y) * 1.4);   // 손가락 위로 밀면 진행(+)
+    addInput((touchY - y) * 1.8);   // 손가락 위로 밀면 진행(+)
     touchY = y;
   }
   function onKey(e) {
@@ -98,16 +108,27 @@
   }
 
   /* ── 재진입 감시: 카드 0번(맨 위)에서 위로 스크롤 시 인트로 복귀 ── */
+  // topAt: 최상단 도달 시각. 도달 직후 350ms는 모멘텀 꼬리(관성 휠/드래그)로 간주하고
+  // 무시 → 카드를 빠르게 위로 넘기다 최상단에 닿았을 때 의도치 않은 재진입 방지.
+  let topAt = 0;
+  const TOP_GRACE = 350;
+  function atTopReady() {
+    if (scrollY > 2) { topAt = 0; return false; }
+    const now = performance.now();
+    if (!topAt) { topAt = now; return false; }
+    return now - topAt > TOP_GRACE;
+  }
   function rwWheel(e) {
     if (!doneFired) return;
-    if (scrollY > 2) { reAccum = 0; return; }
-    if (e.deltaY < 0) { reAccum += -e.deltaY; if (reAccum >= REENTER_THRESH) reenter(); }
+    if (!atTopReady()) { reAccum = 0; return; }
+    const dy = normDY(e);
+    if (dy < 0) { reAccum += -dy; if (reAccum >= REENTER_THRESH) reenter(); }
     else reAccum = 0;
   }
   function rwTouchStart(e) { rwTouchY = e.touches[0].clientY; reAccum = 0; }
   function rwTouchMove(e) {
     if (!doneFired) return;
-    if (scrollY > 2) { rwTouchY = e.touches[0].clientY; return; }
+    if (!atTopReady()) { rwTouchY = e.touches[0].clientY; return; }
     const y = e.touches[0].clientY;
     if (rwTouchY !== null) {
       const dy = y - rwTouchY;                 // 손가락 아래로 = 위로 스크롤 의도
@@ -117,6 +138,7 @@
   }
   function startReentryWatch() {
     reAccum = 0; rwTouchY = null;
+    topAt = scrollY <= 2 ? performance.now() : 0;  // 핸드오프 직후는 최상단
     addEventListener('wheel',      rwWheel,      { passive: true });
     addEventListener('touchstart', rwTouchStart, { passive: true });
     addEventListener('touchmove',  rwTouchMove,  { passive: true });
@@ -132,9 +154,13 @@
     doneFired = false;
     engaged = false;
     abortFrames = 0;
-    accum = introDist();                 // heroP=1 지점에서 시작 → 위로 스크롤하면 하강
+    // 1.0이 아닌 0.75 지점에서 시작: UI가 페이드아웃되고 카드가 살짝 어두워져
+    // "재진입이 걸렸다"는 피드백이 즉시 보임. (1.0 시작이면 스와이프 2~3번까지
+    // 화면 변화가 전혀 없어 재진입이 죽은 것처럼 느껴짐)
+    accum = introDist() * 0.75;
     touchY = null;
     try { window.scrollTo(0, 0); } catch (e) {}
+    if (window.App && App.S) App.S.heroPTgt = accum / introDist();
     document.body.classList.add('intro-active');
     addInputListeners();
   }
