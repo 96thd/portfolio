@@ -52,7 +52,7 @@ window.App = (function () {
   }
   D.bgCtx = D.bgCV.getContext('2d');
 
-  function rsz() { S.W = D.bgCV.width = innerWidth; S.H = D.bgCV.height = innerHeight; }
+  function rsz() { S.W = D.bgCV.width = innerWidth; S.H = D.bgCV.height = innerHeight; S.needsDraw = true; }
   rsz();
 
   /* ─── public API ─── */
@@ -67,6 +67,9 @@ window.App = (function () {
   if (!D.bgCV) return;  // 필수 DOM 없으면 루프 시작 안 함
 
   let lastBgFade = -1;
+  let prevSettled = false;   // 정착 후 마지막 1프레임은 그리고 나서 스킵
+  const hintEl = U.$('scroll-hint');
+  S.needsDraw = false;       // resize 등 외부에서 강제 리드로우 요청용
 
   function masterLoop() {
     S.heroP    += (S.heroPTgt - S.heroP)    * 0.063;
@@ -75,6 +78,15 @@ window.App = (function () {
     if (Math.abs(S.cardTgt  - S.cardFrac) < .0003) S.cardFrac = S.cardTgt;
 
     const bgFade = S.introBgActive ? 0 : Math.max(0, 1 - Math.max(0, (S.heroP - 0.78) / 0.22));
+
+    // ── 유휴 스킵: 갤러리에서 모든 값이 수렴했고 배경도 안 보이면 이번 프레임은 일 없음.
+    //    rAF 틱만 유지 → 입력이 오면 다음 프레임에 즉시 재개. PC 상시 부하 제거.
+    const settled = S.heroP === S.heroPTgt && S.cardFrac === S.cardTgt
+                 && bgFade <= 0.001 && !S.needsDraw;
+    if (settled && prevSettled) { requestAnimationFrame(masterLoop); return; }
+    prevSettled = settled;
+    S.needsDraw = false;
+
     // 변화 시에만 DOM 업데이트
     if (Math.abs(bgFade - lastBgFade) > .001) {
       D.bgCV.style.opacity = bgFade.toFixed(3);
@@ -82,8 +94,7 @@ window.App = (function () {
     }
     if (!S.introBgActive && bgFade > 0.001) App.drawBg();
 
-    const hint = U.$('scroll-hint');
-    if (hint) hint.style.opacity = S.heroP < .1 ? 1 : Math.max(0, 1 - (S.heroP - .1) / .12);
+    if (hintEl) hintEl.style.opacity = S.heroP < .1 ? 1 : Math.max(0, 1 - (S.heroP - .1) / .12);
 
     App.drawCards(S.cardFrac, S.heroP);
     if (typeof window.introLayerUpdate === 'function') window.introLayerUpdate(S.heroP);
