@@ -49,7 +49,14 @@
     return scanCV;
   }
 
+  let bgFrame = 0;
   App.drawBg = function () {
+    // 경계가 움직이지 않을 때는 격프레임(≈30fps)만 그림.
+    // 노이즈·그레인 질감은 30fps가 오히려 필름 그레인 감성에 맞고 비용은 절반.
+    // 경계 이동 중(heroP 변화)에는 60fps 유지.
+    const moving = Math.abs(S.heroPTgt - S.heroP) > 0.0005;
+    if (!moving && (bgFrame++ & 1)) { dPh += 0.016; gT -= .016; return; }
+
     const ctx = D.bgCtx, W = S.W, H = S.H;
     uDisp();
     ctx.fillStyle = C.DOM_BG; ctx.fillRect(0, 0, W, H);
