@@ -73,11 +73,11 @@
   function setSH() {
     $('scroll-driver').style.height = ((N - 1) * PX_PER_CARD + innerHeight) + 'px';
   }
-  addEventListener('resize', () => {
-    clearTimeout(S.rsTO);
-    // 120ms: 모바일 주소바/가상키보드 토글 시 짧은 시간 내 여러 번 발화하는 것 방어
-    S.rsTO = setTimeout(() => { App.rsz(); setSH(); }, 120);
-  });
+addEventListener('resize', () => {
+  S.needsDraw = true;   // ← 추가: 드래그 중에도 루프를 깨워 레이아웃 즉시 갱신
+  clearTimeout(S.rsTO);
+  S.rsTO = setTimeout(() => { App.rsz(); setSH(); }, 120);
+});
   setSH();
 
   /* ─── intro handoff (재진입 가능하므로 once 아님) ─── */
