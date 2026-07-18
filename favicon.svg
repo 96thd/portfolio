@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 100">
-  <style>
-    text { fill: #f0ede8; }
-    @media (prefers-color-scheme: light) {
-      text { fill: #1a1a1a; }
-    }
-  </style>
-  <text x="50" y="50" font-size="90" text-anchor="middle" dominant-baseline="central">ꌰꉬ</text>
-</svg>
