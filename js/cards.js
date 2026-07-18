@@ -129,9 +129,23 @@
   }
 
   /* ─── 카드 렌더링 ─── */
+/* ─── 리사이즈 스무딩: 목표 크기/축을 lerp로 따라감 ─── */
+  let smCW = 0, smAX = 0, smAY = 0, smInit = false;
+
   App.drawCards = function (frac, hP) {
-    const { ax, cw: CW, ch: CH, narrow } = getLV();
-    S.AX = ax; S.AY = Math.round(innerHeight / 2);
+    const { ax, cw, narrow } = getLV();
+    const tAY = innerHeight / 2;
+    if (!smInit) { smCW = cw; smAX = ax; smAY = tAY; smInit = true; }
+    smCW += (cw - smCW) * 0.16;
+    smAX += (ax - smAX) * 0.16;
+    smAY += (tAY - smAY) * 0.16;
+    if (Math.abs(cw - smCW) < .5 && Math.abs(ax - smAX) < .5 && Math.abs(tAY - smAY) < .5) {
+      smCW = cw; smAX = ax; smAY = tAY;          // 수렴 → 스냅
+    } else {
+      S.needsDraw = true;                        // 수렴할 때까지 루프 유지
+    }
+    const CW = Math.round(smCW), CH = Math.round(CW * 9 / 16);
+    S.AX = Math.round(smAX); S.AY = Math.round(smAY);
     const CX = S.AX + R_CARD, CY = S.AY;
     posUI(CW, CH, narrow, hP);
 
