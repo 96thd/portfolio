@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- 상단: 밝은 패널 / 하단: 어두운 패널 — 인트로 수평 분할 모티프 -->
+  <rect width="100" height="100" rx="18" fill="#121212"/>
+  <path d="M0 18 A18 18 0 0 1 18 0 H82 A18 18 0 0 1 100 18 V47 Q75 53 50 49 Q25 45 0 51 Z" fill="#f0ede8"/>
+</svg>
