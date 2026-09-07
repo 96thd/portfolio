@@ -4,7 +4,7 @@
   "description": "Crafting visuals for music. Based in Seoul, Korea.",
   "start_url": "./",
   "scope": "./",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#121212",
   "theme_color": "#121212",
   "icons": [
