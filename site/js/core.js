@@ -109,28 +109,25 @@ window.App = (function () {
     const f = Math.min(dt, 50) / HZ60;   // 50ms(≈3프레임)로 상한 → 탭 복귀 점프 방지
 
     // 타이틀 클릭으로 인트로 복귀 (heroReturnFast):
-    //  · 카드 되감기 속도는 진행도에 따라 종(bell) 모양 — 먼 카드/첫 카드 양끝은 느리고
-    //    중간이 빠르다 (ease-in-out). 넘길 카드가 많으면 오래 걸리되 곡선은 동일.
-    //  · 인트로 형성(heroP 1→0)은 카드가 첫 장 1칸 이내로 되감겼을 때 시작 → 되감기 꼬리와
-    //    겹쳐 이음새(속도 0 구간) 없음.
-    const hf = S.heroReturnFast ? f * 2.2 : f;
+    //  · 카드 되감기는 시간 고정 타임라인(returnDur, 최대 300ms) 위에서 ease-in-out 위치
+    //    곡선으로 굴린다 → 양끝(먼 카드/첫 카드) 완만, 중간 빠름. 카드가 아무리 많아도
+    //    되감기 시간은 그대로라 전체 복귀는 0.5초 이내(되감기 ≤300 + heroP 형성 ~130).
+    //  · heroP 형성은 카드가 첫 장 1.5칸 이내로 되감겼을 때 시작 → 되감기 꼬리와 겹쳐 이음새 없음.
+    const hf = S.heroReturnFast ? f * 2.4 : f;
 
-    let cStep = (S.cardTgt - S.cardFrac) * adj(0.115, f * (S.heroReturnFast ? 2.6 : 1));
     if (S.heroReturnFast) {
-      const rem   = Math.abs(S.cardTgt - S.cardFrac);
-      const p     = U.clamp(1 - rem / (S.returnFrac || 1), 0, 1);   // 0=먼 카드, 1=첫 카드
-      const shape = Math.min(1, Math.sin(Math.PI * p) * 1.5);       // 양끝 램프 + 중간 평탄
-      const cap   = (0.4 + 1.5 * shape) * f;                        // 0.4~1.9 cards/frame
-      if (cStep < -cap) cStep = -cap; else if (cStep > cap) cStep = cap;
-      if (rem <= 1.0) S.heroPTgt = 0;   // 첫 장 근처 → 인트로 형성 시작
+      const t      = U.clamp((now - S.returnT0) / S.returnDur, 0, 1);
+      const smooth = t * t * (3 - 2 * t);            // ease-in-out
+      const pos    = 0.18 * t + 0.82 * smooth;       // 양끝도 살짝 움직이게(완전 정지 아님)
+      S.cardFrac   = S.returnD * (1 - pos);
+      if (S.cardFrac <= 1.5 || t >= 1) S.heroPTgt = 0;   // 첫 장 근처 → 인트로 형성 시작
+      if (S.heroP <= 0.002 && t >= 1) S.heroReturnFast = false;   // 복귀 완료
+    } else {
+      S.cardFrac += (S.cardTgt - S.cardFrac) * adj(0.115, f);
     }
-    S.cardFrac += cStep;
-    S.heroP    += (S.heroPTgt - S.heroP) * adj(0.063, hf);
-    if (Math.abs(S.heroPTgt - S.heroP)    < .0003) S.heroP    = S.heroPTgt;
-    if (Math.abs(S.cardTgt  - S.cardFrac) < .0003) S.cardFrac = S.cardTgt;
-
-    // 복귀 완료(heroP·cardFrac 둘 다 정착) 시 해제
-    if (S.heroReturnFast && S.heroP <= 0.002 && Math.abs(S.cardTgt - S.cardFrac) <= 0.02) S.heroReturnFast = false;
+    S.heroP += (S.heroPTgt - S.heroP) * adj(0.063, hf);
+    if (Math.abs(S.heroPTgt - S.heroP) < .0003) S.heroP = S.heroPTgt;
+    if (Math.abs(S.cardTgt - S.cardFrac) < .0003) S.cardFrac = S.cardTgt;
 
     const bgFade = S.introBgActive ? 0 : Math.max(0, 1 - Math.max(0, (S.heroP - 0.78) / 0.22));
 
