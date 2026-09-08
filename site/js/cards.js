@@ -134,9 +134,8 @@
 
   App.drawCards = function (frac, hP) {
     const { ax, cw, narrow } = getLV();
-    // narrow(모바일)에서는 원호 중심을 아래로 내려 상단 고정 패널/타이틀과의 겹침을 완화.
-    // 세로가 짧을 때(가로 모드 등)는 offset을 0으로 접어 인포 텍스트가 화면 밖으로 밀리지 않게 함.
-    const tAY = narrow ? innerHeight / 2 + clamp((innerHeight - 520) * 0.5, 0, 120) : innerHeight / 2;
+    // narrow(모바일): 원호 중심을 24px만 아래로 — 상단 패널 겹침 살짝 완화. 값 키우면 더 내려감.
+    const tAY = innerHeight / 2 + (narrow ? 24 : 0);
     if (!smInit) { smCW = cw; smAX = ax; smAY = tAY; smInit = true; }
     smCW += (cw - smCW) * 0.16;
     smAX += (ax - smAX) * 0.16;
