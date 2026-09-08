@@ -1,4 +1,5 @@
 # 로컬 전용 — 레포/배포에 포함하지 않음
+CLAUDE.md
 screenshots/
 .playwright-mcp/
 .DS_Store
