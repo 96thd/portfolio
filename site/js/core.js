@@ -113,11 +113,11 @@ window.App = (function () {
     //    그만큼 오래 걸리되 속도감은 균일. 적으면 금방 끝남.
     //  · 인트로 형성(heroP 1→0)은 카드가 첫 장 1칸 이내로 되감겼을 때 시작 → 되감기 꼬리와
     //    겹쳐 이음새(속도 0 구간) 없음.
-    const hf = S.heroReturnFast ? f * 1.5 : f;
+    const hf = S.heroReturnFast ? f * 2.2 : f;
 
     let cStep = (S.cardTgt - S.cardFrac) * adj(0.115, f * (S.heroReturnFast ? 2.6 : 1));
     if (S.heroReturnFast) {
-      const cap = 0.4 * f;                                  // ≈24 cards/s @60fps
+      const cap = 0.8 * f;                                  // ≈48 cards/s @60fps
       if (cStep < -cap) cStep = -cap; else if (cStep > cap) cStep = cap;
       if (Math.abs(S.cardTgt - S.cardFrac) <= 1.0) S.heroPTgt = 0;   // 첫 장 근처 → 인트로 형성 시작
     }
