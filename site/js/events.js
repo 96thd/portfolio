@@ -117,11 +117,21 @@
   addEventListener('wheel',      cancelSnap, { passive: true });
   addEventListener('touchstart', cancelSnap, { passive: true });
 
+  // 인트로 → 첫 카드 핸드오프 직후: 남은 관성 스크롤을 흡수해 첫 카드에 붙여둔다.
+  // (스크롤을 세게 해서 인트로를 끝내면 그 관성이 카드까지 밀고 들어오던 문제)
+  let pinTopUntil = 0, pinTopCap = 0;
+
   /* ─── scroll ─── */
   addEventListener('scroll', () => {
     // 인트로 복귀 중에는 관성 스크롤이 heroPTgt를 1로 되돌려 인트로를 취소시킬 수 있음
     if (document.body.classList.contains('intro-active')) return;
     if (snapping) return;                              // 스냅 애니메이션이 만든 스크롤 이벤트는 무시
+    const nowP = performance.now();
+    if (nowP < pinTopUntil && nowP < pinTopCap) {      // 핸드오프 관성 흡수
+      S.cardTgt = 0;
+      if (scrollY > 1) { scrollTo(0, 0); pinTopUntil = nowP + 220; }  // 관성 지속 → 계속 붙잡음
+      return;
+    }
     const sy = scrollY;
     S.heroPTgt = 1;                                    // 갤러리 진입 후 heroP 고정
     S.cardTgt  = clamp(sy / PX_PER_CARD, 0, N - 1);
@@ -328,8 +338,15 @@ addEventListener('resize', () => {
     S.introBgActive = false;
     S.heroP = 1; S.heroPTgt = 1;
     // cardFrac은 인트로 동안 0으로 잠겨 있었으므로 리셋·튕김 없음 → 카드 0번에서 자연 시작
+    cancelSnap();
+    S.cardTgt = 0;
     try { scrollTo({ top: 0, behavior: 'instant' }); }
     catch (e) { scrollTo(0, 0); }
+    // 관성 흡수 창 + 즉시 재진입 잠금 (핸드오프 직후 되튕김/조기 재진입 방지)
+    const np = performance.now();
+    pinTopUntil = np + 420;
+    pinTopCap   = np + 1400;
+    if (window.introAPI && window.introAPI.suppressReentry) window.introAPI.suppressReentry(650);
     // 앞으로가기로 완료된 경우엔 이미 gallery 상태이므로 중복 추가하지 않음
     if (curView() === 'intro') navPush('gallery');
   });

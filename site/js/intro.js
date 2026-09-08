@@ -17,7 +17,7 @@
 
   // 재진입 트리거 누적 + 임계값
   let reAccum = 0, rwTouchY = null;
-  const REENTER_THRESH = 60;
+  const REENTER_THRESH = 120;   // 쉰 뒤 위로 미는 제스처가 이만큼 쌓여야 인트로 재진입
 
   // 인트로 완료에 필요한 누적 스크롤 거리. 작을수록 빨리 끝남.
   // 데스크톱 ≈ 화면 1.1개, 터치 ≈ 0.65개. (예전 1.3×vh 에서 소폭 축소)
@@ -107,42 +107,54 @@
     removeEventListener('keydown', onKey);
   }
 
-  /* ── 재진입 감시: 카드 0번(맨 위)에서 위로 스크롤 시 인트로 복귀 ── */
-  // topAt: 최상단 도달 시각. 도달 직후 350ms는 모멘텀 꼬리(관성 휠/드래그)로 간주하고
-  // 무시 → 카드를 빠르게 위로 넘기다 최상단에 닿았을 때 의도치 않은 재진입 방지.
-  let topAt = 0;
-  let suppressUntil = 0;      // 이 시각 전까지는 재진입 자체를 잠금
-  const TOP_GRACE = 350;
-  function atTopReady() {
-    // 뒤로가기 등으로 프로그램이 맨 위로 이동시킨 직후에는
-    // 남은 관성만으로 재진입이 걸려 갤러리를 건너뛴다.
-    if (performance.now() < suppressUntil) { topAt = 0; reAccum = 0; return false; }
-    if (scrollY > 2) { topAt = 0; return false; }
-    const now = performance.now();
-    if (!topAt) { topAt = now; return false; }
-    return now - topAt > TOP_GRACE;
+  /* ── 재진입 감시: 첫 카드(최상단)에서 "멈췄다가 다시 위로" 일 때만 인트로 복귀 ──
+     핵심: 첫 카드가 detent(걸림턱)처럼 동작해야 한다.
+     · 다른 카드에서 첫 카드로 쭉 스크롤 → 관성/연속 입력으로는 절대 재진입 안 함.
+     · 최상단에서 스크롤이 잦아든 뒤(restedAtTop), 새로 위로 미는 제스처(500ms 창)에서만
+       누적을 세고, 임계값을 넘으면 재진입.                                     */
+  let suppressUntil = 0;               // 이 시각 전까지는 재진입 자체를 잠금
+  const QUIET_MS = 150;                // 이만큼 입력이 없으면 "최상단에서 쉬는 중"
+  const GESTURE_MS = 500;              // 재진입 제스처 유효 시간
+  let restedAtTop = false;             // 최상단에서 스크롤이 잦아든 적 있음
+  let quietTO = 0;
+  let gestureActive = false, gestureT0 = 0;
+
+  // 스크롤/휠/터치 어느 것이든 "입력 중"으로 기록 → 잦아든 뒤에만 restedAtTop=true.
+  // 관성 휠 이벤트는 최상단 도달 후에도 계속 오지만 간격이 촘촘해 타이머가 안 익음.
+  function noteInput() {
+    restedAtTop = false;
+    clearTimeout(quietTO);
+    quietTO = setTimeout(() => {
+      restedAtTop = (doneFired && scrollY <= 2 && performance.now() >= suppressUntil);
+    }, QUIET_MS);
   }
-  function rwWheel(e) {
+  addEventListener('scroll', noteInput, { passive: true });
+
+  function reentryInput(dy) {          // dy>0 = 위로(재진입 방향)
     if (!doneFired) return;
-    if (!atTopReady()) { reAccum = 0; return; }
-    const dy = normDY(e);
-    if (dy < 0) { reAccum += -dy; if (reAccum >= REENTER_THRESH) reenter(); }
-    else reAccum = 0;
+    const now = performance.now();
+    const wasRested = restedAtTop;     // 이번 입력을 기록하기 전 상태
+    noteInput();
+    if (now < suppressUntil || scrollY > 2) { gestureActive = false; reAccum = 0; return; }
+    if (!gestureActive) {
+      if (!wasRested) return;          // 관성/연속 스크롤 중이었음 → 첫 카드에서 그냥 멈춤
+      gestureActive = true; gestureT0 = now; reAccum = 0;
+    }
+    if (now - gestureT0 > GESTURE_MS) { gestureActive = false; reAccum = 0; return; }
+    if (dy > 0) { reAccum += dy; if (reAccum >= REENTER_THRESH) reenter(); }
+    else { gestureActive = false; reAccum = 0; }    // 아래로 방향 전환 → 제스처 취소
   }
-  function rwTouchStart(e) { rwTouchY = e.touches[0].clientY; reAccum = 0; }
+  function rwWheel(e) { reentryInput(-normDY(e)); }  // 휠 위로 = deltaY<0
+  function rwTouchStart(e) { rwTouchY = e.touches[0].clientY; reAccum = 0; gestureActive = false; }
   function rwTouchMove(e) {
     if (!doneFired) return;
-    if (!atTopReady()) { rwTouchY = e.touches[0].clientY; return; }
     const y = e.touches[0].clientY;
-    if (rwTouchY !== null) {
-      const dy = y - rwTouchY;                 // 손가락 아래로 = 위로 스크롤 의도
-      if (dy > 0) { reAccum += dy; if (reAccum >= REENTER_THRESH) reenter(); }
-    }
+    if (rwTouchY !== null) reentryInput(y - rwTouchY);   // 손가락 아래로 = 위로 스크롤 의도
     rwTouchY = y;
   }
   function startReentryWatch() {
-    reAccum = 0; rwTouchY = null;
-    topAt = scrollY <= 2 ? performance.now() : 0;  // 핸드오프 직후는 최상단
+    reAccum = 0; rwTouchY = null; gestureActive = false; restedAtTop = false;
+    noteInput();
     addEventListener('wheel',      rwWheel,      { passive: true });
     addEventListener('touchstart', rwTouchStart, { passive: true });
     addEventListener('touchmove',  rwTouchMove,  { passive: true });
@@ -247,7 +259,7 @@
     // 히스토리 이동 직후 관성으로 인한 오작동 재진입을 잠시 막는다
     suppressReentry: (ms) => {
       suppressUntil = performance.now() + (ms || 900);
-      reAccum = 0; topAt = 0; rwTouchY = null;
+      reAccum = 0; rwTouchY = null; gestureActive = false; restedAtTop = false;
     },
     isActive: () => !doneFired,
   };
