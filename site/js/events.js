@@ -107,7 +107,7 @@
       if (introActive()) return;
       if (isModalOpen()) doClose();
       navReplace('intro');                        // 히스토리도 인트로로 (앞으로가기 없어짐)
-      const backDur = Math.min(650, 240 + scrollY * 0.3);   // 첫 카드까지 거리 비례 240~650ms
+      const backDur = Math.round(Math.min(450, 170 + scrollY * 0.2));  // 첫 카드까지 거리 비례, ~30% 빠르게
       snapTo(0, { dur: backDur, trackCard: true, done: () => {
         if (window.introAPI && window.introAPI.toStart) window.introAPI.toStart();
       }});

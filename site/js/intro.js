@@ -114,6 +114,7 @@
     if (window.App && App.S) {
       App.S.heroPTgt = 0;
       App.S.cardTgt = 0; App.S.cardFrac = 0;   // 카드도 첫 장으로 되돌림 (인트로 뒤에서)
+      App.S.heroReturnFast = true;             // heroP 1→0 을 빠르게 (core.js)
       App.S.needsDraw = true;
     }
     document.body.classList.add('intro-active');
