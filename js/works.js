@@ -1,5 +1,7 @@
 const works = [
   { id: '', title: '' },
+  { id: 'dPf4vip_xvI', title: "SHINWONHO 신원호 [ Super Star ] MV" },
+  { id: '_2eH8PvM8UA', title: "[MV] NINA(니나) _ Why (Korean Ver.)" },
   { id: 'yX1R7HspWvg', title: "더윈드 (The Wind) 'That's Smoove!' Performance" },
   { id: 'c7J516-Da2o', title: "[MV] HANBIN (TEMPEST) _ No Fear (Feat. punchnello)" },
   { id: '2ugrqyDeoY0', title: "넬(NELL) 'Sweet Delusion' Official MV" },
