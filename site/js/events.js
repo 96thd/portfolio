@@ -65,46 +65,54 @@
     if (!introActive() && window.introAPI) window.introAPI.toStart();
   });
 
-  // 좌측 "SUHO SONG" 텍스트 클릭/터치 → 인트로 첫 화면으로.
-  // (카드 화면에서 인트로로 가는 유일한 경로 — 스크롤로는 못 들어감)
-  (function () {
-    const h1 = document.querySelector('#left h1');
-    if (!h1) return;
-    h1.addEventListener('click', () => {
-      if (introActive()) return;
-      if (isModalOpen()) doClose();
-      if (window.introAPI && window.introAPI.toStart) window.introAPI.toStart();
-      navReplace('intro');                        // 히스토리도 인트로로 (앞으로가기 없어짐)
-    });
-  })();
-
   /* ─── 카드 스냅 ───────────────────────────────────────────────
      예전엔 scrollTo({behavior:'smooth'}) — 브라우저 기본 이징이 길고(≈400ms)
-     조정이 안 돼 늘어지는 느낌. 직접 rAF로 강한 ease-out(≤300ms)을 굴린다.
+     조정이 안 돼 늘어지는 느낌. 직접 rAF로 강한 ease-out을 굴린다.
      사용자 입력(휠/터치/화살표)이 들어오면 즉시 취소해 끊기지 않게. */
   let snapRAF = 0, snapping = false;
   function cancelSnap() { snapping = false; if (snapRAF) cancelAnimationFrame(snapRAF); snapRAF = 0; }
-  function snapTo(i) {
+  // opts: { dur, trackCard, done } — 기본은 짧고 빠른 카드 스냅.
+  function snapTo(i, opts) {
+    opts = opts || {};
     i = Math.round(clamp(i, 0, N - 1));
     const targetY = cardScrollTop(i);
     const startY = scrollY, dist = targetY - startY;
-    if (Math.abs(dist) < 1) { S.cardTgt = i; return; }
+    if (Math.abs(dist) < 1) { S.cardTgt = i; if (opts.done) opts.done(); return; }
     cancelSnap();
     snapping = true;
     S.cardTgt = i;                                          // cardFrac이 목표 카드로 수렴
-    const dur = Math.min(210, 90 + Math.abs(dist) * 0.5);   // 거리에 비례, 90~210ms — 짧고 빠르게
+    const dur = opts.dur || Math.min(210, 90 + Math.abs(dist) * 0.5);
     const t0 = performance.now();
     const ease = t => 1 - Math.pow(1 - t, 3);
     (function step(now) {
       if (!snapping || document.body.classList.contains('intro-active')) { cancelSnap(); return; }
       const p = Math.min(((now || performance.now()) - t0) / dur, 1);
       scrollTo(0, Math.round(startY + dist * ease(p)));
+      if (opts.trackCard) S.cardTgt = clamp(scrollY / PX_PER_CARD, 0, N - 1);
       if (p < 1) snapRAF = requestAnimationFrame(step);
-      else cancelSnap();
+      else { cancelSnap(); if (opts.done) opts.done(); }
     })(t0);
   }
   addEventListener('wheel',      cancelSnap, { passive: true });
   addEventListener('touchstart', cancelSnap, { passive: true });
+
+  // 좌측 "SUHO SONG" 텍스트 클릭/터치 → 인트로 첫 화면으로.
+  // (카드 화면에서 인트로로 가는 유일한 경로 — 스크롤로는 못 들어감)
+  // 모션: 먼저 첫 카드까지 부드럽게 스크롤(카드가 되감기듯) → 그 다음 heroP 1→0 으로
+  //       인트로 분할이 다시 형성되며 글자가 제자리로. (한 번의 연속된 뒤로가기 느낌)
+  (function () {
+    const h1 = document.querySelector('#left h1');
+    if (!h1) return;
+    h1.addEventListener('click', () => {
+      if (introActive()) return;
+      if (isModalOpen()) doClose();
+      navReplace('intro');                        // 히스토리도 인트로로 (앞으로가기 없어짐)
+      const backDur = Math.min(650, 240 + scrollY * 0.3);   // 첫 카드까지 거리 비례 240~650ms
+      snapTo(0, { dur: backDur, trackCard: true, done: () => {
+        if (window.introAPI && window.introAPI.toStart) window.introAPI.toStart();
+      }});
+    });
+  })();
 
   // 인트로 → 첫 카드 핸드오프 직후 잠깐: 관성으로 살짝 밀려도 스냅은 첫 카드로.
   // (붙잡지 않고 자유 스크롤은 허용 — 멈추면 딱 한 번 card 0으로 스냅)

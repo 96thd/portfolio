@@ -140,8 +140,11 @@
     if (hP >= 0.95 && (engaged || abortFrames > 10)) {
       layer.style.display = 'none';
       doneFired = true; engaged = false;
-      teardown();
       dispatchEvent(new Event('intro-done'));
+      // 스크롤 잠금은 250ms 더 유지 → 인트로를 세게 끝냈을 때 남은 관성이
+      // 문서로 새어 두 번째 카드로 밀려버리는 것을 막는다. 그동안 onWheel이
+      // preventDefault + (accum 포화라)no-op 로 관성을 삼킨다.
+      setTimeout(teardown, 250);
       return;
     }
     layer.style.display = '';
