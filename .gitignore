@@ -1,0 +1,8 @@
+# 로컬 전용 — 레포/배포에 포함하지 않음
+screenshots/
+.playwright-mcp/
+.DS_Store
+
+# PDF 빌드 워크플로우가 CI에서 생성하는 임시 스크립트
+build.js
+node_modules/

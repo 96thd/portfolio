@@ -129,7 +129,9 @@
   function ytSend(msg) {
     const f = $('modal-iframe');
     if (!f || !f.contentWindow) return;
-    try { f.contentWindow.postMessage(JSON.stringify(msg), YT_ORIGIN); } catch (e) {}
+    // targetOrigin은 '*' — iframe이 youtube 문서를 커밋하기 전(about:blank, 부모 origin)에
+    // 호출되면 origin 명시 시 콘솔 경고 + 메시지 폐기가 난다. payload에 민감 정보 없음.
+    try { f.contentWindow.postMessage(JSON.stringify(msg), '*'); } catch (e) {}
   }
   function ytToggle() {
     ytSend({ event: 'command', func: ytPlaying ? 'pauseVideo' : 'playVideo', args: [] });

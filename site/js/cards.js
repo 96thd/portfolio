@@ -134,7 +134,8 @@
 
   App.drawCards = function (frac, hP) {
     const { ax, cw, narrow } = getLV();
-    const tAY = innerHeight / 2;
+    // narrow(모바일): 원호 중심을 24px만 아래로 — 상단 패널 겹침 살짝 완화. 값 키우면 더 내려감.
+    const tAY = innerHeight / 2 + (narrow ? 24 : 0);
     if (!smInit) { smCW = cw; smAX = ax; smAY = tAY; smInit = true; }
     smCW += (cw - smCW) * 0.16;
     smAX += (ax - smAX) * 0.16;
