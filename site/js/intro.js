@@ -65,6 +65,8 @@
 
   // 입력 누적 → heroPTgt 갱신 (master loop의 lerp가 부드럽게 따라옴)
   function addInput(dy) {
+    // 복귀 애니메이션 중 사용자가 아래로 밀면 복귀 모드 해제하고 정상 전진으로.
+    if (dy > 0 && window.App && App.S && App.S.heroReturnFast) App.S.heroReturnFast = false;
     accum = Math.max(0, Math.min(accum + dy, introDist()));
     const prog = accum / introDist();
     if (window.App && App.S) App.S.heroPTgt = prog;
@@ -112,9 +114,14 @@
     touchY = null;
     try { window.scrollTo(0, 0); } catch (e) {}
     if (window.App && App.S) {
-      App.S.heroPTgt = 0;
-      App.S.cardTgt = 0;                       // cardFrac은 즉시대입 없이 lerp → 카드가 되감기며 빠짐
-      App.S.heroReturnFast = true;             // heroP·cardFrac 수렴을 빠르게 (core.js)
+      App.S.cardTgt = 0;                       // heroReturnFast 해제 후 cardFrac이 lerp로 수렴할 목표
+      const D = Math.max(1, App.S.cardFrac);
+      App.S.returnD   = D;
+      App.S.returnDur = Math.min(300, Math.max(120, D * 15));   // 되감기 시간(ms). 최대 300 → 전체 ≤0.5s
+      App.S.returnT0  = performance.now();
+      App.S.heroReturnFast = true;             // core.js: 시간 고정 ease-in-out 되감기 + heroP 형성
+      // 되감을 카드가 남았으면 heroP는 1 유지(되감기 먼저), 이미 첫 장이면 바로 형성.
+      App.S.heroPTgt = (D > 1.5) ? 1 : 0;
       App.S.needsDraw = true;
     }
     document.body.classList.add('intro-active');

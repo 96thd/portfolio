@@ -108,16 +108,26 @@ window.App = (function () {
     lastT = now;
     const f = Math.min(dt, 50) / HZ60;   // 50ms(≈3프레임)로 상한 → 탭 복귀 점프 방지
 
-    // 타이틀 클릭으로 인트로 복귀 시: heroP 수렴 1.5배, cardFrac(카드 되감기) 수렴도 가속.
-    // 둘을 한 프레임 안에서 같이 굴려 이음새 없는 단일 모션으로. (인트로→카드 방향은 그대로)
-    const hf = S.heroReturnFast ? f * 1.5 : f;
-    const cf = S.heroReturnFast ? f * 2.6 : f;
-    if (S.heroReturnFast && (S.heroP <= 0.001 || S.heroPTgt > 0.02)) S.heroReturnFast = false;
+    // 타이틀 클릭으로 인트로 복귀 (heroReturnFast):
+    //  · 카드 되감기는 시간 고정 타임라인(returnDur, 최대 300ms) 위에서 ease-in-out 위치
+    //    곡선으로 굴린다 → 양끝(먼 카드/첫 카드) 완만, 중간 빠름. 카드가 아무리 많아도
+    //    되감기 시간은 그대로라 전체 복귀는 0.5초 이내(되감기 ≤300 + heroP 형성 ~130).
+    //  · heroP 형성은 카드가 첫 장 1.5칸 이내로 되감겼을 때 시작 → 되감기 꼬리와 겹쳐 이음새 없음.
+    const hf = S.heroReturnFast ? f * 2.4 : f;
 
-    S.heroP    += (S.heroPTgt - S.heroP)    * adj(0.063, hf);
-    S.cardFrac += (S.cardTgt  - S.cardFrac) * adj(0.115, cf);
-    if (Math.abs(S.heroPTgt - S.heroP)    < .0003) S.heroP    = S.heroPTgt;
-    if (Math.abs(S.cardTgt  - S.cardFrac) < .0003) S.cardFrac = S.cardTgt;
+    if (S.heroReturnFast) {
+      const t      = U.clamp((now - S.returnT0) / S.returnDur, 0, 1);
+      const smooth = t * t * (3 - 2 * t);            // ease-in-out
+      const pos    = 0.18 * t + 0.82 * smooth;       // 양끝도 살짝 움직이게(완전 정지 아님)
+      S.cardFrac   = S.returnD * (1 - pos);
+      if (S.cardFrac <= 1.5 || t >= 1) S.heroPTgt = 0;   // 첫 장 근처 → 인트로 형성 시작
+      if (S.heroP <= 0.002 && t >= 1) S.heroReturnFast = false;   // 복귀 완료
+    } else {
+      S.cardFrac += (S.cardTgt - S.cardFrac) * adj(0.115, f);
+    }
+    S.heroP += (S.heroPTgt - S.heroP) * adj(0.063, hf);
+    if (Math.abs(S.heroPTgt - S.heroP) < .0003) S.heroP = S.heroPTgt;
+    if (Math.abs(S.cardTgt - S.cardFrac) < .0003) S.cardFrac = S.cardTgt;
 
     const bgFade = S.introBgActive ? 0 : Math.max(0, 1 - Math.max(0, (S.heroP - 0.78) / 0.22));
 
