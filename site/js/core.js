@@ -20,10 +20,21 @@ window.App = (function () {
     LIGHT_BG    : '#f5f4f0',
   };
   const isLight = (() => { try { return matchMedia('(prefers-color-scheme:light)').matches; } catch (e) { return false; } })();
+  // 접근성: 움직임 최소화 요청 시 그레인·글리치·경계 흔들림·글자 비행을 끈다.
+  const reduceMotion = (() => { try { return matchMedia('(prefers-reduced-motion:reduce)').matches; } catch (e) { return false; } })();
 
   C.isLight = isLight;
-  C.COL_BG  = isLight ? C.DARK_BG  : C.LIGHT_BG;  // 사라지는 패널
-  C.DOM_BG  = isLight ? C.LIGHT_BG : C.DARK_BG;   // 남는 패널
+  C.reduceMotion = reduceMotion;
+  function applyThemeColors(light) {
+    C.isLight = light;
+    C.COL_BG = light ? C.DARK_BG  : C.LIGHT_BG;   // 사라지는 패널
+    C.DOM_BG = light ? C.LIGHT_BG : C.DARK_BG;    // 남는 패널
+  }
+  applyThemeColors(isLight);
+  // 테마 실시간 반영: 로드 후 OS 라이트/다크가 바뀌면 C 색상을 갱신하고,
+  // JS로 칠한 부분(카드 더미/테두리/글로우/dim, 캔버스 분할)을 콜백으로 다시 맞춘다.
+  // CSS 토큰은 미디어쿼리로 알아서 바뀌므로 여기선 JS 쪽만 챙긴다.
+  C._themeCbs = [];
 
   /* ─── state (mutable, 다른 모듈에서 직접 수정) ─── */
   const S = {
@@ -54,6 +65,19 @@ window.App = (function () {
 
   function rsz() { S.W = D.bgCV.width = innerWidth; S.H = D.bgCV.height = innerHeight; S.needsDraw = true; }
   rsz();
+
+  /* ─── 테마 변경 감시 ─── */
+  try {
+    const mqd = matchMedia('(prefers-color-scheme:dark)');
+    const onTheme = () => {
+      const light = !mqd.matches;
+      if (light === C.isLight) return;
+      applyThemeColors(light);
+      C._themeCbs.forEach(fn => { try { fn(light); } catch (e) {} });
+      S.needsDraw = true;
+    };
+    mqd.addEventListener ? mqd.addEventListener('change', onTheme) : mqd.addListener(onTheme);
+  } catch (e) {}
 
   /* ─── public API ─── */
   return { C, S, U, D, rsz };

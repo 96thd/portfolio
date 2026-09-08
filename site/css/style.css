@@ -26,7 +26,11 @@ body{background:var(--bg);font-family:sans-serif;-webkit-font-smoothing:antialia
 #stage-ui{position:fixed;inset:0;pointer-events:none;z-index:4;}
 
 .card{position:absolute;left:0;top:0;background:#1a1a1a;border-radius:12px;overflow:hidden;
-  will-change:transform,opacity;transform-origin:center center;pointer-events:auto;cursor:pointer;box-sizing:border-box;}
+  will-change:transform,opacity;transform-origin:center center;pointer-events:auto;cursor:pointer;box-sizing:border-box;
+  transition:box-shadow .18s ease;}
+@media(prefers-color-scheme:light){.card{background:#e8e6e0;}}  /* 썸네일 로드 전 플래시 방지 */
+/* 중앙 카드 포커스 시 JS가 테두리(1→2px)·글로우를 토글 — 뚝 끊기지 않게 */
+.card-border{transition:border .18s ease;}
 
 /* info text: initially hidden, JS controls opacity */
 #info-title,#info-role{opacity:0;transition:none;}
@@ -81,9 +85,16 @@ body{background:var(--bg);font-family:sans-serif;-webkit-font-smoothing:antialia
 }
 
 /* ── modal ── */
-#modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:1000;display:none;align-items:center;justify-content:center;padding:24px;}
-#modal-bg.open{display:flex;}
-#modal{width:100%;max-width:860px;position:relative;}
+/* 등장: 백드롭 페이드 + 카드 scale(.965→1). display 전환은 allow-discrete + @starting-style.
+   전환이므로 히스토리 내비로 빠르게 열고닫아도 중간에서 리타깃됨. */
+#modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:1000;display:none;align-items:center;justify-content:center;padding:24px;
+  transition:background .22s ease, display .22s allow-discrete;}
+#modal-bg.open{display:flex;background:rgba(0,0,0,.9);}
+@starting-style{#modal-bg.open{background:rgba(0,0,0,0);}}
+#modal{width:100%;max-width:860px;position:relative;opacity:0;transform:scale(.965);
+  transition:opacity .22s cubic-bezier(.23,1,.32,1), transform .22s cubic-bezier(.23,1,.32,1);}
+#modal-bg.open #modal{opacity:1;transform:scale(1);}
+@starting-style{#modal-bg.open #modal{opacity:0;transform:scale(.965);}}
 #modal-iframe{width:100%;aspect-ratio:16/9;border:none;background:#000;max-height:70vh;}
 @media(pointer:coarse) and (orientation:landscape){
   #modal{max-width:min(860px,calc(80vh * 16 / 9));}
@@ -95,3 +106,12 @@ body{background:var(--bg);font-family:sans-serif;-webkit-font-smoothing:antialia
 #modal-info{margin-top:12px;display:flex;align-items:baseline;justify-content:space-between;}
 #modal-title{font-family:sans-serif;font-size:15px;font-weight:300;color:#f0ede8;}
 #modal-role{font-family:monospace;font-size:10px;color:rgba(255,255,255,.38);letter-spacing:.12em;}
+
+/* ── 움직임 최소화(prefers-reduced-motion) ──
+   위치 이동만 제거하고 페이드/색은 유지. 배경 그레인·글리치·흔들림, 인트로 글자 비행은
+   JS 쪽(core.js reduceMotion → bg.js / intro.js)에서 끈다. 카드 원호는 핵심 내비라 유지. */
+@media(prefers-reduced-motion:reduce){
+  #modal{transform:none;}
+  #modal-bg.open #modal{transform:none;}
+  @starting-style{#modal-bg.open #modal{transform:none;}}
+}

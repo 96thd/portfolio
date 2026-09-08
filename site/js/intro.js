@@ -199,11 +199,12 @@
 
     if (hintEl) hintEl.style.opacity = hP < 0.05 ? '1' : String(Math.max(0, 1 - (hP - 0.05) / 0.08));
 
+    const RM = window.App && App.C && App.C.reduceMotion;
     let ty, op;
     if (hP <= 0.38) { ty = 0; op = 1; }
     else {
       const t = Math.min((hP - 0.38) / 0.37, 1);
-      ty = eIn3(t) * innerHeight * 0.55;
+      ty = RM ? 0 : eIn3(t) * innerHeight * 0.55;   // RM: 날아가지 않고 제자리 페이드
       op = Math.max(0, 1 - t / 0.9);
     }
 
