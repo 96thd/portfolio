@@ -32,6 +32,7 @@
     if (window.introAPI && window.introAPI.suppressReentry) window.introAPI.suppressReentry(1000);
     S.heroPTgt = 1;
     clearTimeout(S.snapTO);
+    cancelSnap();
     document.body.style.overflow = '';        // 혹시 남아있을 스크롤 잠금 해제
     const top = cardScrollTop(i);
     try { scrollTo({ top: top, behavior: 'auto' }); } catch (e) { scrollTo(0, top); }
@@ -88,17 +89,46 @@
     navReplace('intro');
   });
 
+  /* ─── 카드 스냅 ───────────────────────────────────────────────
+     예전엔 scrollTo({behavior:'smooth'}) — 브라우저 기본 이징이 길고(≈400ms)
+     조정이 안 돼 늘어지는 느낌. 직접 rAF로 강한 ease-out(≤300ms)을 굴린다.
+     사용자 입력(휠/터치/화살표)이 들어오면 즉시 취소해 끊기지 않게. */
+  let snapRAF = 0, snapping = false;
+  function cancelSnap() { snapping = false; if (snapRAF) cancelAnimationFrame(snapRAF); snapRAF = 0; }
+  function snapTo(i) {
+    i = Math.round(clamp(i, 0, N - 1));
+    const targetY = cardScrollTop(i);
+    const startY = scrollY, dist = targetY - startY;
+    if (Math.abs(dist) < 1) { S.cardTgt = i; return; }
+    cancelSnap();
+    snapping = true;
+    S.cardTgt = i;                                          // cardFrac이 목표 카드로 수렴
+    const dur = Math.min(300, 130 + Math.abs(dist) * 0.55); // 거리에 비례, 130~300ms
+    const t0 = performance.now();
+    const ease = t => 1 - Math.pow(1 - t, 3);
+    (function step(now) {
+      if (!snapping || document.body.classList.contains('intro-active')) { cancelSnap(); return; }
+      const p = Math.min(((now || performance.now()) - t0) / dur, 1);
+      scrollTo(0, Math.round(startY + dist * ease(p)));
+      if (p < 1) snapRAF = requestAnimationFrame(step);
+      else cancelSnap();
+    })(t0);
+  }
+  addEventListener('wheel',      cancelSnap, { passive: true });
+  addEventListener('touchstart', cancelSnap, { passive: true });
+
   /* ─── scroll ─── */
   addEventListener('scroll', () => {
     // 인트로 복귀 중에는 관성 스크롤이 heroPTgt를 1로 되돌려 인트로를 취소시킬 수 있음
     if (document.body.classList.contains('intro-active')) return;
+    if (snapping) return;                              // 스냅 애니메이션이 만든 스크롤 이벤트는 무시
     const sy = scrollY;
     S.heroPTgt = 1;                                    // 갤러리 진입 후 heroP 고정
     S.cardTgt  = clamp(sy / PX_PER_CARD, 0, N - 1);
     S.lastSY = sy;
     clearTimeout(S.snapTO);
-    const delay = S.cardTgt < 0.3 ? 220 : 140;
-    S.snapTO = setTimeout(() => scrollTo({ top: cardScrollTop(Math.round(S.cardTgt)), behavior: 'smooth' }), delay);
+    const delay = S.cardTgt < 0.3 ? 200 : 110;
+    S.snapTO = setTimeout(() => snapTo(S.cardTgt), delay);
   }, { passive: true });
 
   /* ─── keyboard (통합: 화살표 + Escape + 모달 스페이스) ─── */
@@ -117,8 +147,8 @@
     }
 
     if (document.body.classList.contains('intro-active')) return;  // 인트로 중엔 intro.js가 처리
-    if (e.key === 'ArrowDown') { e.preventDefault(); scrollTo({ top: cardScrollTop(Math.min(N - 1, Math.round(S.cardTgt) + 1)), behavior: 'smooth' }); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); scrollTo({ top: cardScrollTop(Math.max(0, Math.round(S.cardTgt) - 1)), behavior: 'smooth' }); }
+    if (e.key === 'ArrowDown') { e.preventDefault(); snapTo(Math.round(S.cardTgt) + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); snapTo(Math.round(S.cardTgt) - 1); }
   });
 
   /* ─── 유튜브 플레이어 제어 (iframe postMessage) ─────────────────
