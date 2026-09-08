@@ -4,8 +4,8 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'js/works.js'
-      - 'pdf.html'
+      - 'site/js/works.js'
+      - 'site/pdf.html'
       - '.github/workflows/build-pdf.yml'
   workflow_dispatch:  # 수동 실행 가능
 
@@ -40,7 +40,7 @@ jobs:
             const page = await browser.newPage();
             await page.setViewport({ width: 1920, height: 1080 }); // 16:9
 
-            const fileUrl = 'file://' + path.resolve('pdf.html');
+            const fileUrl = 'file://' + path.resolve('site/pdf.html');
             await page.goto(fileUrl, { waitUntil: 'networkidle0', timeout: 60000 });
 
             // 이미지 로드 완료 대기
@@ -48,7 +48,7 @@ jobs:
             await new Promise(r => setTimeout(r, 1500)); // 폰트 + 렌더 안정화
 
             await page.pdf({
-              path: 'portfolio.pdf',
+              path: 'site/portfolio.pdf',
               width: '360mm',
               height: '202.5mm',
               printBackground: true,
@@ -66,10 +66,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add portfolio.pdf
+          git add site/portfolio.pdf
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: rebuild portfolio.pdf [skip ci]"
+            # [skip ci] 안 붙임 — deploy.yml이 돌아 새 PDF를 Pages에 반영해야 함.
+            # build-pdf.yml은 site/portfolio.pdf를 트리거 경로에 안 넣었으므로 무한루프 없음.
+            git commit -m "chore: rebuild portfolio.pdf"
             git push
           fi
