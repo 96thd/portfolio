@@ -131,7 +131,7 @@
     S.snapTO = setTimeout(() => snapTo(toFirst ? 0 : S.cardTgt), delay);
   }, { passive: true });
 
-  /* ─── keyboard (통합: 화살표 + Escape + 모달 스페이스) ─── */
+  /* ─── keyboard (갤러리 화살표 내비 + Escape) ─── */
   addEventListener('keydown', e => {
     // input/textarea/contenteditable에 포커스 있으면 무시 (향후 form 추가 대비)
     const t = e.target;
@@ -140,156 +140,25 @@
     // 인자 없이 호출 — closeModal이 e.target 없는 경우를 처리함
     if (e.key === 'Escape') { window.closeModal(); return; }
 
-    // 모달이 열려 있는 동안: YouTube 임베드 기본 단축키를 iframe API 명령으로 대신 보냄.
-    // (포커스는 부모에 있어 네이티브 단축키가 안 먹음)  그 외 키는 카드로 새지 않게 차단.
-    if (isModalOpen()) {
-      const k = e.key;
-      if (k === ' ' || e.code === 'Space' || k === 'k' || k === 'K') { e.preventDefault(); ytToggle(); }
-      else if (k === 'ArrowLeft')  { e.preventDefault(); ytSeek(-5); }
-      else if (k === 'ArrowRight') { e.preventDefault(); ytSeek(5); }
-      else if (k === 'ArrowUp')    { e.preventDefault(); ytVolume(5); }
-      else if (k === 'ArrowDown')  { e.preventDefault(); ytVolume(-5); }
-      else if (k === 'j' || k === 'J') { e.preventDefault(); ytSeek(-10); }
-      else if (k === 'l' || k === 'L') { e.preventDefault(); ytSeek(10); }
-      else if (k === 'm' || k === 'M') { e.preventDefault(); ytMute(); }
-      else if (k === 'f' || k === 'F') { e.preventDefault(); ytFullscreen(); }
-      else if (k === 'c' || k === 'C') { e.preventDefault(); ytCaptions(); }
-      else if (k === 'Home')           { e.preventDefault(); ytSeekTo(0); }
-      else if (k === 'End')            { e.preventDefault(); ytSeekTo(ytDur || 1e9); }
-      else if (k >= '0' && k <= '9')   { e.preventDefault(); if (ytDur) ytSeekTo(ytDur * (+k) / 10); }
-      else if (k === ',')  { e.preventDefault(); if (!ytPlaying) ytSeek(-1 / 30); }  // 이전 프레임(정지 시)
-      else if (k === '.')  { e.preventDefault(); if (!ytPlaying) ytSeek( 1 / 30); }  // 다음 프레임(정지 시)
-      else if (k === '<')  { e.preventDefault(); ytRate(-1); }                       // 배속 down (Shift+,)
-      else if (k === '>')  { e.preventDefault(); ytRate( 1); }                       // 배속 up (Shift+.)
-      return;
-    }
+    // 모달이 열려 있으면 갤러리 조작 키를 여기서 끊는다. 영상 단축키(space/←→ 등)는
+    // 사용자가 플레이어를 클릭해 포커스가 iframe으로 넘어간 뒤 YouTube가 직접 처리한다.
+    // (포커스가 아직 부모에 있을 때 Space가 닫기 버튼을 누르는 것만 막는다.)
+    if (isModalOpen()) { if (e.key === ' ') e.preventDefault(); return; }
 
     if (document.body.classList.contains('intro-active')) return;  // 인트로 중엔 intro.js가 처리
     if (e.key === 'ArrowDown') { e.preventDefault(); snapTo(Math.round(S.cardTgt) + 1); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); snapTo(Math.round(S.cardTgt) - 1); }
   });
 
-  /* ─── 유튜브 플레이어 제어 (iframe postMessage) ─────────────────
-     교차 출처라 iframe 내부 키 입력은 못 읽고, 포커스가 iframe에 있으면 Escape가
-     부모로 안 온다 → 포커스를 부모(#modal-close)에 붙잡아 둔다.
-     그러면 YouTube 네이티브 단축키가 안 먹으므로, 위 keydown 블록에서
-     YouTube 임베드 기본 단축키(space/k, ←→ j l, ↑↓, m, f, c, 0~9, Home/End, ,/. <>)를
-     iframe API command 로 대신 보낸다.
-     seek/volume/속도 계산에 필요한 currentTime·duration·volume·muted·playbackRate 는
-     아래 message 핸들러가 infoDelivery 로 받아 캐시한다.
+  /* ─── 영상 모달 ───────────────────────────────────────────────
+     교차 출처(youtube-nocookie) iframe이라 부모는 안쪽 키 입력을 못 읽는다.
+     포커스를 뺏지 않고 그대로 두면(클릭하면 iframe으로 이동) YouTube 네이티브
+     단축키(space, ←→, ↑↓, j l, m, f, c, 0~9, ,/. 등)가 전부 그냥 동작한다.
+     닫기는 ✕ 버튼 / 바깥(어두운 배경) 클릭 / Escape(포커스가 아직 부모에 있을 때).
   ──────────────────────────────────────────────────────────── */
   const YT_ORIGIN = 'https://www.youtube-nocookie.com';
-  let ytPlaying = true;   // autoplay=1로 열리므로 재생 상태로 시작
-  // infoDelivery 로 갱신되는 플레이어 상태 캐시 (seek/volume/속도 계산용)
-  let ytTime = 0, ytDur = 0, ytVol = 100, ytMuted = false, ytTimeAt = 0;
-  let ytRateVal = 1, ytRates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2], ccOn = false;
 
   const isModalOpen = () => $('modal-bg').classList.contains('open');
-
-  function ytSend(msg) {
-    const f = $('modal-iframe');
-    if (!f || !f.contentWindow) return;
-    // targetOrigin은 '*' — iframe이 youtube 문서를 커밋하기 전(about:blank, 부모 origin)에
-    // 호출되면 origin 명시 시 콘솔 경고 + 메시지 폐기가 난다. payload에 민감 정보 없음.
-    try { f.contentWindow.postMessage(JSON.stringify(msg), '*'); } catch (e) {}
-  }
-  function ytToggle() {
-    ytSend({ event: 'command', func: ytPlaying ? 'pauseVideo' : 'playVideo', args: [] });
-    ytPlaying = !ytPlaying;   // 상태 이벤트가 오면 아래 message 핸들러가 보정
-  }
-  // infoDelivery 틱(~250ms) 사이 재생분을 더해 현재 재생 위치 추정
-  function ytNow() { return ytPlaying ? ytTime + (performance.now() - ytTimeAt) / 1000 : ytTime; }
-  function ytSeekTo(sec) {
-    const target = ytDur ? clamp(sec, 0, ytDur) : Math.max(0, sec);
-    ytTime = target; ytTimeAt = performance.now();
-    ytSend({ event: 'command', func: 'seekTo', args: [target, true] });
-  }
-  function ytSeek(delta) { ytSeekTo(ytNow() + delta); }   // 상대 이동 (연타 시 낙관적 누적)
-  function ytRate(dir) {   // < / > : 사용 가능한 배속 목록에서 한 칸 이동
-    let i = ytRates.indexOf(ytRateVal);
-    if (i < 0) i = ytRates.indexOf(1);
-    i = clamp(i + dir, 0, ytRates.length - 1);
-    ytRateVal = ytRates[i];
-    ytSend({ event: 'command', func: 'setPlaybackRate', args: [ytRateVal] });
-  }
-  function ytCaptions() {   // c : 자막 모듈 토글 (마지막/기본 트랙)
-    ccOn = !ccOn;
-    ytSend({ event: 'command', func: ccOn ? 'loadModule' : 'unloadModule', args: ['captions'] });
-  }
-  function ytVolume(delta) {
-    if (ytMuted && delta > 0) { ytMuted = false; ytSend({ event: 'command', func: 'unMute', args: [] }); }
-    ytVol = clamp(Math.round(ytVol + delta), 0, 100);
-    ytSend({ event: 'command', func: 'setVolume', args: [ytVol] });
-  }
-  function ytMute() {
-    ytMuted = !ytMuted;
-    ytSend({ event: 'command', func: ytMuted ? 'mute' : 'unMute', args: [] });
-  }
-  function ytFullscreen() {
-    const f = $('modal-iframe');
-    if (document.fullscreenElement || document.webkitFullscreenElement) {
-      (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document);
-    } else if (f) {
-      (f.requestFullscreen || f.webkitRequestFullscreen || (() => {})).call(f);
-    }
-  }
-
-  // 플레이어 상태 이벤트 수신 등록 (직접 조작해도 ytPlaying이 어긋나지 않게)
-  // iframe 노드가 매번 교체되므로 swapIframe()에서 다시 붙인다.
-  function onIframeLoad() {
-    if (!isModalOpen()) return;
-    ytPlaying = true;
-    ytSend({ event: 'listening', id: 1, channel: 'widget' });
-  }
-  const ifr0 = $('modal-iframe');
-  if (ifr0) ifr0.addEventListener('load', onIframeLoad);
-
-  addEventListener('message', e => {
-    if (e.origin !== YT_ORIGIN) return;
-    let d; try { d = JSON.parse(e.data); } catch (err) { return; }
-    if (!d) return;
-    // onStateChange 는 info 가 숫자로 오기도 함
-    if (d.event === 'onStateChange' && typeof d.info === 'number') { ytPlaying = d.info === 1; return; }
-    const info = d.info;
-    if (!info || typeof info !== 'object') return;
-    // playerState: 1=재생, 2=일시정지, 0=종료
-    if (typeof info.playerState === 'number') ytPlaying = info.playerState === 1;
-    if (typeof info.currentTime === 'number') { ytTime = info.currentTime; ytTimeAt = performance.now(); }
-    if (typeof info.duration === 'number' && info.duration > 0) ytDur = info.duration;
-    if (typeof info.volume === 'number') ytVol = info.volume;
-    if (typeof info.muted === 'boolean') ytMuted = info.muted;
-    if (typeof info.playbackRate === 'number') ytRateVal = info.playbackRate;
-    if (Array.isArray(info.availablePlaybackRates) && info.availablePlaybackRates.length) ytRates = info.availablePlaybackRates;
-  });
-
-  // iframe으로 포커스가 넘어가면 되찾아옴.
-  // iframe은 tabindex="-1"이라 Tab으로는 들어갈 수 없다 → 포커스가 거기 있다면 클릭뿐.
-  // (주의: iframe 안쪽 클릭은 교차 출처라 부모에 pointerdown이 전달되지 않는다.
-  //  포인터 입력 여부로 거르면 영영 회수하지 못해 Escape가 죽는다.)
-  addEventListener('blur', () => {
-    setTimeout(() => {
-      if (!isModalOpen()) return;
-      if (document.fullscreenElement) return;          // 전체화면 중엔 건드리지 않음
-      if (document.activeElement !== $('modal-iframe')) return;
-      const b = $('modal-close'); if (b) b.focus();
-    }, 250);
-  });
-
-  // 전체화면에서 빠져나온 직후에는 blur가 다시 발생하지 않는다.
-  // 포커스는 여전히 iframe 안에 있으므로 부모의 Escape 핸들러가 죽은 상태 →
-  // 전체화면 종료 시점에 직접 포커스를 회수한다.
-  function onFsChange() {
-    if (document.fullscreenElement || document.webkitFullscreenElement) return;  // 진입은 무시
-    if (!isModalOpen()) return;
-    // 종료 직후 브라우저가 포커스를 다시 만지므로 한 틱 늦춰서 회수
-    setTimeout(() => {
-      if (!isModalOpen()) return;
-      if (document.fullscreenElement || document.webkitFullscreenElement) return;
-      const b = $('modal-close'); if (b) b.focus();
-    }, 150);
-  }
-  document.addEventListener('fullscreenchange', onFsChange);
-  document.addEventListener('webkitfullscreenchange', onFsChange);
 
   // iframe 노드를 통째로 새로 만들어 끼운다.
   //  · src 대입은 히스토리 항목을 만들고(열 때 1 + 닫을 때 1) 뒤로가기가 유령 항목에 걸린다.
@@ -301,11 +170,9 @@
     if (!old) return null;
     const f = document.createElement('iframe');
     f.id = 'modal-iframe';
-    f.setAttribute('tabindex', '-1');           // Tab으로는 들어가지 않음
     f.setAttribute('title', '영상 재생');
     f.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
     f.allowFullscreen = true;
-    f.addEventListener('load', onIframeLoad);
     if (url) f.src = url;
     old.replaceWith(f);
     return f;
@@ -346,17 +213,15 @@
   // 모달 열기 (히스토리는 건드리지 않음 — 호출한 쪽이 책임)
   function openVideo(i) {
     if (!works[i] || !works[i].id) return;
-    // enablejsapi=1 — 스페이스바 재생/일시정지를 postMessage로 제어하기 위해 필요
-    swapIframe(`${YT_ORIGIN}/embed/${works[i].id}?autoplay=1&enablejsapi=1&origin=${location.origin}`);
+    swapIframe(`${YT_ORIGIN}/embed/${works[i].id}?autoplay=1`);
     $('modal-title').textContent = works[i].title;
     $('modal-bg').classList.add('open');
     document.body.style.overflow = 'hidden';
-    ytPlaying = true;
-    ytTime = 0; ytDur = 0; ytVol = 100; ytMuted = false; ytTimeAt = performance.now();
-    ytRateVal = 1; ccOn = false;
     // 배경 UI를 포커스/스크린리더 대상에서 제외 (인스타 링크·PDF 버튼)
     const su = $('stage-ui'); if (su) su.inert = true;
-    const b = $('modal-close'); if (b) b.focus();   // 처음부터 Escape가 먹도록
+    // 포커스를 닫기 버튼에 둔다 → 클릭 전까지 Escape로 닫힘. 영상을 클릭하면
+    // 포커스가 iframe으로 넘어가고 그때부터 YouTube 네이티브 단축키가 동작.
+    const b = $('modal-close'); if (b) b.focus();
   }
 
   // 실제 닫기 (히스토리는 건드리지 않음)
