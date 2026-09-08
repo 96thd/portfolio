@@ -20,12 +20,11 @@
   const REENTER_THRESH = 60;
 
   // 인트로 완료에 필요한 누적 스크롤 거리. 작을수록 빨리 끝남.
-  // 데스크톱 ≈ 화면 0.6개(휠 대여섯 번 / 트랙패드 한 번), 터치 ≈ 스와이프 한 번.
-  // 예전엔 1.3×vh 라 스크롤을 과하게 해야 했음.
+  // 데스크톱 ≈ 화면 1개, 터치 ≈ 0.65개. (예전 1.3×vh 와 축소안 0.6×vh 의 중간값)
   const isCoarse = (() => { try { return matchMedia('(pointer:coarse)').matches; } catch (e) { return false; } })();
   function introDist() {
-    return isCoarse ? Math.max(300, innerHeight * 0.45)
-                    : Math.max(400, innerHeight * 0.6);
+    return isCoarse ? Math.max(360, innerHeight * 0.65)
+                    : Math.max(560, innerHeight * 1.0);
   }
 
   function calcFontSize() {
