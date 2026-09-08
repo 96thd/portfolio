@@ -117,7 +117,7 @@ window.App = (function () {
 
     let cStep = (S.cardTgt - S.cardFrac) * adj(0.115, f * (S.heroReturnFast ? 2.6 : 1));
     if (S.heroReturnFast) {
-      const cap = 1.2 * f;                                  // ≈72 cards/s @60fps
+      const cap = 1.5 * f;                                  // ≈90 cards/s @60fps
       if (cStep < -cap) cStep = -cap; else if (cStep > cap) cStep = cap;
       if (Math.abs(S.cardTgt - S.cardFrac) <= 1.0) S.heroPTgt = 0;   // 첫 장 근처 → 인트로 형성 시작
     }
