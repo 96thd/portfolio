@@ -20,11 +20,12 @@
   const REENTER_THRESH = 60;
 
   // 인트로 완료에 필요한 누적 스크롤 거리. 작을수록 빨리 끝남.
-  // 터치 기기는 스와이프 피로가 크므로 훨씬 짧게 (스와이프 약 1회 분량).
+  // 데스크톱 ≈ 화면 0.6개(휠 대여섯 번 / 트랙패드 한 번), 터치 ≈ 스와이프 한 번.
+  // 예전엔 1.3×vh 라 스크롤을 과하게 해야 했음.
   const isCoarse = (() => { try { return matchMedia('(pointer:coarse)').matches; } catch (e) { return false; } })();
   function introDist() {
-    return isCoarse ? Math.max(480, innerHeight * 0.85)
-                    : Math.max(700, innerHeight * 1.3);
+    return isCoarse ? Math.max(300, innerHeight * 0.45)
+                    : Math.max(400, innerHeight * 0.6);
   }
 
   function calcFontSize() {

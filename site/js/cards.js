@@ -149,14 +149,15 @@
 /* ─── 리사이즈 스무딩: 목표 크기/축을 lerp로 따라감 ─── */
   let smCW = 0, smAX = 0, smAY = 0, smInit = false;
 
-  App.drawCards = function (frac, hP) {
+  App.drawCards = function (frac, hP, f) {
     const { ax, cw, narrow } = getLV();
     // narrow(모바일): 원호 중심을 24px만 아래로 — 상단 패널 겹침 살짝 완화. 값 키우면 더 내려감.
     const tAY = innerHeight / 2 + (narrow ? 24 : 0);
     if (!smInit) { smCW = cw; smAX = ax; smAY = tAY; smInit = true; }
-    smCW += (cw - smCW) * 0.16;
-    smAX += (ax - smAX) * 0.16;
-    smAY += (tAY - smAY) * 0.16;
+    const ks = f ? 1 - Math.pow(1 - 0.16, f) : 0.16;   // 프레임레이트 독립 (core.js에서 f 전달)
+    smCW += (cw - smCW) * ks;
+    smAX += (ax - smAX) * ks;
+    smAY += (tAY - smAY) * ks;
     if (Math.abs(cw - smCW) < .5 && Math.abs(ax - smAX) < .5 && Math.abs(tAY - smAY) < .5) {
       smCW = cw; smAX = ax; smAY = tAY;          // 수렴 → 스냅
     } else {

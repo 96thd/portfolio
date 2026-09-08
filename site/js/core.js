@@ -95,9 +95,21 @@ window.App = (function () {
   const hintEl = U.$('scroll-hint');
   S.needsDraw = false;       // resize 등 외부에서 강제 리드로우 요청용
 
-  function masterLoop() {
-    S.heroP    += (S.heroPTgt - S.heroP)    * 0.063;
-    S.cardFrac += (S.cardTgt  - S.cardFrac) * 0.115;
+  // 프레임레이트 독립 보간: lerp 계수는 60fps 기준값이므로,
+  // 실제 프레임 간격(dt)에 맞춰 k' = 1 - (1-k)^(dt/16.667) 로 보정한다.
+  // 안 하면 120/144Hz에서 인트로·카드 모션이 ~2배 빠르고, 렉/탭복귀 때 튄다.
+  let lastT = 0;
+  const HZ60 = 1000 / 60;
+  const adj = (k, f) => 1 - Math.pow(1 - k, f);
+
+  function masterLoop(now) {
+    now = now || performance.now();
+    let dt = lastT ? now - lastT : HZ60;
+    lastT = now;
+    const f = Math.min(dt, 50) / HZ60;   // 50ms(≈3프레임)로 상한 → 탭 복귀 점프 방지
+
+    S.heroP    += (S.heroPTgt - S.heroP)    * adj(0.063, f);
+    S.cardFrac += (S.cardTgt  - S.cardFrac) * adj(0.115, f);
     if (Math.abs(S.heroPTgt - S.heroP)    < .0003) S.heroP    = S.heroPTgt;
     if (Math.abs(S.cardTgt  - S.cardFrac) < .0003) S.cardFrac = S.cardTgt;
 
@@ -120,7 +132,7 @@ window.App = (function () {
 
     if (hintEl) hintEl.style.opacity = S.heroP < .1 ? 1 : Math.max(0, 1 - (S.heroP - .1) / .12);
 
-    App.drawCards(S.cardFrac, S.heroP);
+    App.drawCards(S.cardFrac, S.heroP, f);
     if (typeof window.introLayerUpdate === 'function') window.introLayerUpdate(S.heroP);
 
     requestAnimationFrame(masterLoop);
