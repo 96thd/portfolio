@@ -28,6 +28,7 @@ body{background:var(--bg);font-family:sans-serif;-webkit-font-smoothing:antialia
 .card{position:absolute;left:0;top:0;background:#1a1a1a;border-radius:12px;overflow:hidden;
   will-change:transform,opacity;transform-origin:center center;pointer-events:auto;cursor:pointer;box-sizing:border-box;
   transition:box-shadow .18s ease;}
+@media(prefers-color-scheme:light){.card{background:#e8e6e0;}}  /* 썸네일 로드 전 플래시 방지 */
 /* 중앙 카드 포커스 시 JS가 테두리(1→2px)·글로우를 토글 — 뚝 끊기지 않게 */
 .card-border{transition:border .18s ease;}
 

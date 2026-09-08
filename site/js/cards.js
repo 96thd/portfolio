@@ -4,28 +4,35 @@
 ══════════════════════════════════════════════════════════════════ */
 (function () {
   const { C, S, U, D } = App;
-  const { N, R_CARD, STEP, CARD_AX_R, CDEG, isLight } = C;
+  const { N, R_CARD, STEP, CARD_AX_R, CDEG } = C;
+  let isLight = C.isLight;   // 테마 변경 시 restyle()에서 갱신
   const { eOut3, eOut4, clamp, $ } = U;
 
   /* ─── 카드 DOM 생성 ─── */
-  function makeDummyCard(card) {
-    card.dataset.dummy = '1';
+  // 더미 카드의 테마 의존 색만 (재)적용 — 생성 시 + 테마 변경 시 공용
+  function paintDummy(card) {
     card.style.background = isLight ? '#e8e6e0' : '#1e1e1e';
-    const bd = document.createElement('div');
-    bd.style.cssText = isLight
+    card._dummyBd.style.cssText = isLight
       ? 'position:absolute;inset:0;border-radius:12px;border:1.5px solid rgba(58,55,51,.18);pointer-events:none;box-sizing:border-box;box-shadow:0 0 24px rgba(58,55,51,.07),inset 0 0 24px rgba(58,55,51,.03);'
       : 'position:absolute;inset:0;border-radius:12px;border:1.5px solid rgba(240,237,232,.38);pointer-events:none;box-sizing:border-box;box-shadow:0 0 24px rgba(240,237,232,.10),inset 0 0 24px rgba(240,237,232,.04);';
-    card.appendChild(bd);
-    const tx = document.createElement('div');
-    tx.textContent = 'NOW WORKING';
-    tx.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
+    card._dummyTx.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
       + 'font-family:"Bebas Neue","Noto Sans KR",sans-serif;font-weight:700;letter-spacing:.20em;line-height:1;'
       + (isLight
         ? 'color:#3a3733;text-shadow:0 0 8px rgba(58,55,51,.18),0 0 20px rgba(58,55,51,.06);'
         : 'color:#f0ede8;text-shadow:0 0 8px rgba(240,237,232,.6),0 0 20px rgba(240,237,232,.2),0 0 44px rgba(240,237,232,.10);')
       + 'user-select:none;pointer-events:none;';
-    card._dummyTx = tx;
+    card._lastDfs = null;   // 폰트 크기는 drawCards가 매 프레임 결정 → 다음 프레임에 재적용
+  }
+  function makeDummyCard(card) {
+    card.dataset.dummy = '1';
+    const bd = document.createElement('div');
+    card.appendChild(bd);
+    card._dummyBd = bd;
+    const tx = document.createElement('div');
+    tx.textContent = 'NOW WORKING';
     card.appendChild(tx);
+    card._dummyTx = tx;
+    paintDummy(card);
   }
 
   function makeImageCard(card, w) {
@@ -54,6 +61,16 @@
     return card;
   });
   App.cardEls = cardEls;  // events.js에서 클릭 핸들링 시 참조
+
+  // 테마 변경: 더미 카드 재도색 + 캐시 무효화 → 다음 프레임에 테두리/글로우/dim 재적용
+  C._themeCbs.push(function (light) {
+    isLight = light;
+    for (const card of cardEls) {
+      if (card.dataset.dummy) paintDummy(card);
+      else { card._lastCenter = null; card._lastOvBg = null; }
+    }
+    S.needsDraw = true;
+  });
 
   let lastCW = -1, lastCH = -1;  // 카드 크기 캐시 — 변할 때만 width/height 기록
   let lastCi = -1, lastSc = -1, lastRv = '';  // 인포 텍스트 캐시
