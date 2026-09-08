@@ -108,16 +108,26 @@ window.App = (function () {
     lastT = now;
     const f = Math.min(dt, 50) / HZ60;   // 50ms(≈3프레임)로 상한 → 탭 복귀 점프 방지
 
-    // 타이틀 클릭으로 인트로 복귀 시: heroP 수렴 1.5배, cardFrac(카드 되감기) 수렴도 가속.
-    // 둘을 한 프레임 안에서 같이 굴려 이음새 없는 단일 모션으로. (인트로→카드 방향은 그대로)
+    // 타이틀 클릭으로 인트로 복귀 (heroReturnFast):
+    //  · 카드 되감기는 거리와 무관하게 "일정 속도"(프레임당 상한). 넘길 카드가 많으면
+    //    그만큼 오래 걸리되 속도감은 균일. 적으면 금방 끝남.
+    //  · 인트로 형성(heroP 1→0)은 카드가 첫 장 1칸 이내로 되감겼을 때 시작 → 되감기 꼬리와
+    //    겹쳐 이음새(속도 0 구간) 없음.
     const hf = S.heroReturnFast ? f * 1.5 : f;
-    const cf = S.heroReturnFast ? f * 2.6 : f;
-    if (S.heroReturnFast && (S.heroP <= 0.001 || S.heroPTgt > 0.02)) S.heroReturnFast = false;
 
-    S.heroP    += (S.heroPTgt - S.heroP)    * adj(0.063, hf);
-    S.cardFrac += (S.cardTgt  - S.cardFrac) * adj(0.115, cf);
+    let cStep = (S.cardTgt - S.cardFrac) * adj(0.115, f * (S.heroReturnFast ? 2.6 : 1));
+    if (S.heroReturnFast) {
+      const cap = 0.4 * f;                                  // ≈24 cards/s @60fps
+      if (cStep < -cap) cStep = -cap; else if (cStep > cap) cStep = cap;
+      if (Math.abs(S.cardTgt - S.cardFrac) <= 1.0) S.heroPTgt = 0;   // 첫 장 근처 → 인트로 형성 시작
+    }
+    S.cardFrac += cStep;
+    S.heroP    += (S.heroPTgt - S.heroP) * adj(0.063, hf);
     if (Math.abs(S.heroPTgt - S.heroP)    < .0003) S.heroP    = S.heroPTgt;
     if (Math.abs(S.cardTgt  - S.cardFrac) < .0003) S.cardFrac = S.cardTgt;
+
+    // 복귀 완료(heroP·cardFrac 둘 다 정착) 시 해제
+    if (S.heroReturnFast && S.heroP <= 0.002 && Math.abs(S.cardTgt - S.cardFrac) <= 0.02) S.heroReturnFast = false;
 
     const bgFade = S.introBgActive ? 0 : Math.max(0, 1 - Math.max(0, (S.heroP - 0.78) / 0.22));
 
