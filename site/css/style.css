@@ -39,6 +39,10 @@ body{background:var(--bg);font-family:sans-serif;-webkit-font-smoothing:antialia
 #left{position:absolute;pointer-events:none;text-align:right;}
 #left h1{font-family:'Bebas Neue',cursive;font-size:72px;letter-spacing:.04em;line-height:.88;color:var(--text-strong);
   text-shadow:0 0 8px rgba(240,237,232,.35),0 0 24px rgba(240,237,232,.1);}
+/* 갤러리에서 SUHO SONG 클릭/터치 → 인트로 첫 화면 (events.js) */
+body:not(.intro-active) #left h1{pointer-events:auto;cursor:pointer;transition:opacity .18s ease;}
+body:not(.intro-active) #left h1:active{opacity:.62;}
+@media(hover:hover){body:not(.intro-active) #left h1:hover{opacity:.62;}}
 #left .sub{font-family:'Bebas Neue',cursive;font-size:26px;letter-spacing:.04em;color:var(--text-strong);margin-top:6px;
   text-shadow:0 0 10px rgba(240,237,232,.22),0 0 28px rgba(240,237,232,.07);}
 #left .tag{font-family:monospace;font-size:15px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-tag);margin-top:16px;display:block;
