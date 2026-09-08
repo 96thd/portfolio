@@ -72,14 +72,20 @@
   // 사용자가 위로 스크롤해 인트로로 되돌아간 경우 히스토리도 맞춰줌.
   // 단, 뒤로가기로 첫 카드에 막 도착한 직후엔 스크롤이 맨 위에 닿으면서
   // 관성만으로 재진입이 걸릴 수 있다 → 그 구간은 무시(갤러리를 건너뛰는 원인).
+  //
+  // 리스너는 반드시 하나만 둔다. 예전에 같은 일을 하는 리스너가 둘이었는데,
+  // 같은 디스패치에서 동기로 실행되고 popstate는 비동기라 두 번째도 curView()를
+  // 여전히 'gallery'로 보고 back()을 한 번 더 호출 → intro를 지나쳐 사이트 밖으로
+  // 나가버렸다. back()은 재진입 1회당 최대 1번.
   addEventListener('intro-reenter', () => {
     if (Date.now() - lastNavAt < 900) return;
-    if (curView() !== 'intro') history.back();
-  });
-
-  // 사용자가 위로 스크롤해 인트로로 되돌아간 경우 히스토리도 맞춰줌
-  addEventListener('intro-reenter', () => {
-    if (curView() === 'gallery') history.back();
+    const v = curView();
+    if (v === 'intro') return;                  // 이미 인트로 항목 → 그대로 멈춤
+    // gallery는 항상 intro 바로 다음에 push되므로 back() 1회가 정확히 intro다.
+    if (v === 'gallery') { history.back(); return; }
+    // 그 외(card/video 등)에서는 back()이 intro를 지나칠 수 있다.
+    // 현재 항목을 intro로 치환해 사이트 밖으로 나가는 일이 없게 한다.
+    navReplace('intro');
   });
 
   /* ─── scroll ─── */
