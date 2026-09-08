@@ -140,9 +140,27 @@
     // 인자 없이 호출 — closeModal이 e.target 없는 경우를 처리함
     if (e.key === 'Escape') { window.closeModal(); return; }
 
-    // 모달이 열려 있는 동안: 스페이스=재생/일시정지, 그 외 키는 카드로 새지 않게 차단
+    // 모달이 열려 있는 동안: YouTube 임베드 기본 단축키를 iframe API 명령으로 대신 보냄.
+    // (포커스는 부모에 있어 네이티브 단축키가 안 먹음)  그 외 키는 카드로 새지 않게 차단.
     if (isModalOpen()) {
-      if (e.key === ' ' || e.code === 'Space') { e.preventDefault(); ytToggle(); }
+      const k = e.key;
+      if (k === ' ' || e.code === 'Space' || k === 'k' || k === 'K') { e.preventDefault(); ytToggle(); }
+      else if (k === 'ArrowLeft')  { e.preventDefault(); ytSeek(-5); }
+      else if (k === 'ArrowRight') { e.preventDefault(); ytSeek(5); }
+      else if (k === 'ArrowUp')    { e.preventDefault(); ytVolume(5); }
+      else if (k === 'ArrowDown')  { e.preventDefault(); ytVolume(-5); }
+      else if (k === 'j' || k === 'J') { e.preventDefault(); ytSeek(-10); }
+      else if (k === 'l' || k === 'L') { e.preventDefault(); ytSeek(10); }
+      else if (k === 'm' || k === 'M') { e.preventDefault(); ytMute(); }
+      else if (k === 'f' || k === 'F') { e.preventDefault(); ytFullscreen(); }
+      else if (k === 'c' || k === 'C') { e.preventDefault(); ytCaptions(); }
+      else if (k === 'Home')           { e.preventDefault(); ytSeekTo(0); }
+      else if (k === 'End')            { e.preventDefault(); ytSeekTo(ytDur || 1e9); }
+      else if (k >= '0' && k <= '9')   { e.preventDefault(); if (ytDur) ytSeekTo(ytDur * (+k) / 10); }
+      else if (k === ',')  { e.preventDefault(); if (!ytPlaying) ytSeek(-1 / 30); }  // 이전 프레임(정지 시)
+      else if (k === '.')  { e.preventDefault(); if (!ytPlaying) ytSeek( 1 / 30); }  // 다음 프레임(정지 시)
+      else if (k === '<')  { e.preventDefault(); ytRate(-1); }                       // 배속 down (Shift+,)
+      else if (k === '>')  { e.preventDefault(); ytRate( 1); }                       // 배속 up (Shift+.)
       return;
     }
 
@@ -152,13 +170,19 @@
   });
 
   /* ─── 유튜브 플레이어 제어 (iframe postMessage) ─────────────────
-     교차 출처라 iframe 내부의 키 입력은 읽을 수 없음.
-     → 클릭으로 포커스가 iframe에 들어가면 즉시 되찾아와서
-       Escape·스페이스가 이 페이지에서 계속 동작하게 함.
-     대가: 유튜브 자체 단축키(k/j/l/f/방향키)는 동작하지 않음.
+     교차 출처라 iframe 내부 키 입력은 못 읽고, 포커스가 iframe에 있으면 Escape가
+     부모로 안 온다 → 포커스를 부모(#modal-close)에 붙잡아 둔다.
+     그러면 YouTube 네이티브 단축키가 안 먹으므로, 위 keydown 블록에서
+     YouTube 임베드 기본 단축키(space/k, ←→ j l, ↑↓, m, f, c, 0~9, Home/End, ,/. <>)를
+     iframe API command 로 대신 보낸다.
+     seek/volume/속도 계산에 필요한 currentTime·duration·volume·muted·playbackRate 는
+     아래 message 핸들러가 infoDelivery 로 받아 캐시한다.
   ──────────────────────────────────────────────────────────── */
   const YT_ORIGIN = 'https://www.youtube-nocookie.com';
   let ytPlaying = true;   // autoplay=1로 열리므로 재생 상태로 시작
+  // infoDelivery 로 갱신되는 플레이어 상태 캐시 (seek/volume/속도 계산용)
+  let ytTime = 0, ytDur = 0, ytVol = 100, ytMuted = false, ytTimeAt = 0;
+  let ytRateVal = 1, ytRates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2], ccOn = false;
 
   const isModalOpen = () => $('modal-bg').classList.contains('open');
 
@@ -172,6 +196,42 @@
   function ytToggle() {
     ytSend({ event: 'command', func: ytPlaying ? 'pauseVideo' : 'playVideo', args: [] });
     ytPlaying = !ytPlaying;   // 상태 이벤트가 오면 아래 message 핸들러가 보정
+  }
+  // infoDelivery 틱(~250ms) 사이 재생분을 더해 현재 재생 위치 추정
+  function ytNow() { return ytPlaying ? ytTime + (performance.now() - ytTimeAt) / 1000 : ytTime; }
+  function ytSeekTo(sec) {
+    const target = ytDur ? clamp(sec, 0, ytDur) : Math.max(0, sec);
+    ytTime = target; ytTimeAt = performance.now();
+    ytSend({ event: 'command', func: 'seekTo', args: [target, true] });
+  }
+  function ytSeek(delta) { ytSeekTo(ytNow() + delta); }   // 상대 이동 (연타 시 낙관적 누적)
+  function ytRate(dir) {   // < / > : 사용 가능한 배속 목록에서 한 칸 이동
+    let i = ytRates.indexOf(ytRateVal);
+    if (i < 0) i = ytRates.indexOf(1);
+    i = clamp(i + dir, 0, ytRates.length - 1);
+    ytRateVal = ytRates[i];
+    ytSend({ event: 'command', func: 'setPlaybackRate', args: [ytRateVal] });
+  }
+  function ytCaptions() {   // c : 자막 모듈 토글 (마지막/기본 트랙)
+    ccOn = !ccOn;
+    ytSend({ event: 'command', func: ccOn ? 'loadModule' : 'unloadModule', args: ['captions'] });
+  }
+  function ytVolume(delta) {
+    if (ytMuted && delta > 0) { ytMuted = false; ytSend({ event: 'command', func: 'unMute', args: [] }); }
+    ytVol = clamp(Math.round(ytVol + delta), 0, 100);
+    ytSend({ event: 'command', func: 'setVolume', args: [ytVol] });
+  }
+  function ytMute() {
+    ytMuted = !ytMuted;
+    ytSend({ event: 'command', func: ytMuted ? 'mute' : 'unMute', args: [] });
+  }
+  function ytFullscreen() {
+    const f = $('modal-iframe');
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document);
+    } else if (f) {
+      (f.requestFullscreen || f.webkitRequestFullscreen || (() => {})).call(f);
+    }
   }
 
   // 플레이어 상태 이벤트 수신 등록 (직접 조작해도 ytPlaying이 어긋나지 않게)
@@ -187,10 +247,19 @@
   addEventListener('message', e => {
     if (e.origin !== YT_ORIGIN) return;
     let d; try { d = JSON.parse(e.data); } catch (err) { return; }
+    if (!d) return;
+    // onStateChange 는 info 가 숫자로 오기도 함
+    if (d.event === 'onStateChange' && typeof d.info === 'number') { ytPlaying = d.info === 1; return; }
+    const info = d.info;
+    if (!info || typeof info !== 'object') return;
     // playerState: 1=재생, 2=일시정지, 0=종료
-    if (d && d.info && typeof d.info.playerState === 'number') {
-      ytPlaying = d.info.playerState === 1;
-    }
+    if (typeof info.playerState === 'number') ytPlaying = info.playerState === 1;
+    if (typeof info.currentTime === 'number') { ytTime = info.currentTime; ytTimeAt = performance.now(); }
+    if (typeof info.duration === 'number' && info.duration > 0) ytDur = info.duration;
+    if (typeof info.volume === 'number') ytVol = info.volume;
+    if (typeof info.muted === 'boolean') ytMuted = info.muted;
+    if (typeof info.playbackRate === 'number') ytRateVal = info.playbackRate;
+    if (Array.isArray(info.availablePlaybackRates) && info.availablePlaybackRates.length) ytRates = info.availablePlaybackRates;
   });
 
   // iframe으로 포커스가 넘어가면 되찾아옴.
@@ -283,6 +352,8 @@
     $('modal-bg').classList.add('open');
     document.body.style.overflow = 'hidden';
     ytPlaying = true;
+    ytTime = 0; ytDur = 0; ytVol = 100; ytMuted = false; ytTimeAt = performance.now();
+    ytRateVal = 1; ccOn = false;
     // 배경 UI를 포커스/스크린리더 대상에서 제외 (인스타 링크·PDF 버튼)
     const su = $('stage-ui'); if (su) su.inert = true;
     const b = $('modal-close'); if (b) b.focus();   // 처음부터 Escape가 먹도록
