@@ -20,8 +20,11 @@ window.App = (function () {
     LIGHT_BG    : '#f5f4f0',
   };
   const isLight = (() => { try { return matchMedia('(prefers-color-scheme:light)').matches; } catch (e) { return false; } })();
+  // 접근성: 움직임 최소화 요청 시 그레인·글리치·경계 흔들림·글자 비행을 끈다.
+  const reduceMotion = (() => { try { return matchMedia('(prefers-reduced-motion:reduce)').matches; } catch (e) { return false; } })();
 
   C.isLight = isLight;
+  C.reduceMotion = reduceMotion;
   C.COL_BG  = isLight ? C.DARK_BG  : C.LIGHT_BG;  // 사라지는 패널
   C.DOM_BG  = isLight ? C.LIGHT_BG : C.DARK_BG;   // 남는 패널
 

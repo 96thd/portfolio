@@ -17,3 +17,8 @@ body.intro-active { overflow: hidden; }
   0%,100% { opacity:.5; transform:translate(-50%,0); }
   50%     { opacity:1;  transform:translate(-50%,-5px); }
 }
+
+/* 움직임 최소화: 힌트의 위아래 펄스를 멈추고 정적 표시만 */
+@media(prefers-reduced-motion:reduce){
+  #intro-hint { animation:none; opacity:.7; transform:translate(-50%,0); }
+}

@@ -5,12 +5,14 @@
 ══════════════════════════════════════════════════════════════════ */
 (function () {
   const { C, S, D } = App;
+  const RM = C.reduceMotion;   // 움직임 최소화: 흔들림/그레인/글리치 제거, 정적 분할만
 
   const DR = 400;
   const dp = new Float32Array(DR);
   let dPh = 0;
 
   function uDisp() {
+    if (RM) return;   // 경계는 heroP에 따라서만 움직이고, 유휴 흔들림은 없음
     dPh += 0.016;
     for (let i = 0; i < DR; i++) {
       const x = i / DR;
@@ -67,6 +69,7 @@
     ctx.lineTo(W, ay); ctx.closePath();
     ctx.fillStyle = C.COL_BG; ctx.fill();
 
+   if (!RM) {
     // 경계선 노이즈 — fillStyle은 1회만, 알파는 globalAlpha(숫자)로.
     // (프레임당 수천 번 rgba 문자열 생성+파싱하던 것이 PC 상시 부하의 주범)
     if (S.heroP < 0.98) {
@@ -107,7 +110,8 @@
       ctx.globalAlpha = 1;
       if (done) { gA = false; gT = 2 + Math.random() * 3; }
     }
-    // scanlines (오프스크린 캐시 1회 drawImage)
+   }
+    // scanlines (오프스크린 캐시 1회 drawImage) — 정적 패턴이라 RM에서도 유지
     ctx.drawImage(scanlines(W, H), 0, 0);
   };
 })();
