@@ -103,7 +103,7 @@
     cancelSnap();
     snapping = true;
     S.cardTgt = i;                                          // cardFrac이 목표 카드로 수렴
-    const dur = Math.min(300, 130 + Math.abs(dist) * 0.55); // 거리에 비례, 130~300ms
+    const dur = Math.min(210, 90 + Math.abs(dist) * 0.5);   // 거리에 비례, 90~210ms — 짧고 빠르게
     const t0 = performance.now();
     const ease = t => 1 - Math.pow(1 - t, 3);
     (function step(now) {
@@ -117,28 +117,24 @@
   addEventListener('wheel',      cancelSnap, { passive: true });
   addEventListener('touchstart', cancelSnap, { passive: true });
 
-  // 인트로 → 첫 카드 핸드오프 직후: 남은 관성 스크롤을 흡수해 첫 카드에 붙여둔다.
-  // (스크롤을 세게 해서 인트로를 끝내면 그 관성이 카드까지 밀고 들어오던 문제)
-  let pinTopUntil = 0, pinTopCap = 0;
+  // 인트로 → 첫 카드 핸드오프 직후 잠깐: 관성으로 살짝 밀려도 스냅은 첫 카드로.
+  // (붙잡지 않고 자유 스크롤은 허용 — 멈추면 딱 한 번 card 0으로 스냅)
+  let handoffUntil = 0;
 
   /* ─── scroll ─── */
   addEventListener('scroll', () => {
     // 인트로 복귀 중에는 관성 스크롤이 heroPTgt를 1로 되돌려 인트로를 취소시킬 수 있음
     if (document.body.classList.contains('intro-active')) return;
     if (snapping) return;                              // 스냅 애니메이션이 만든 스크롤 이벤트는 무시
-    const nowP = performance.now();
-    if (nowP < pinTopUntil && nowP < pinTopCap) {      // 핸드오프 관성 흡수
-      S.cardTgt = 0;
-      if (scrollY > 1) { scrollTo(0, 0); pinTopUntil = nowP + 220; }  // 관성 지속 → 계속 붙잡음
-      return;
-    }
     const sy = scrollY;
     S.heroPTgt = 1;                                    // 갤러리 진입 후 heroP 고정
     S.cardTgt  = clamp(sy / PX_PER_CARD, 0, N - 1);
     S.lastSY = sy;
     clearTimeout(S.snapTO);
-    const delay = S.cardTgt < 0.3 ? 200 : 110;
-    S.snapTO = setTimeout(() => snapTo(S.cardTgt), delay);
+    // 핸드오프 창 안 + 아직 첫 카드 근처면 무조건 card 0으로 스냅(한 번).
+    const toFirst = performance.now() < handoffUntil && S.cardTgt < 1.5;
+    const delay = toFirst ? 90 : (S.cardTgt < 0.3 ? 150 : 80);
+    S.snapTO = setTimeout(() => snapTo(toFirst ? 0 : S.cardTgt), delay);
   }, { passive: true });
 
   /* ─── keyboard (통합: 화살표 + Escape + 모달 스페이스) ─── */
@@ -342,11 +338,9 @@ addEventListener('resize', () => {
     S.cardTgt = 0;
     try { scrollTo({ top: 0, behavior: 'instant' }); }
     catch (e) { scrollTo(0, 0); }
-    // 관성 흡수 창 + 즉시 재진입 잠금 (핸드오프 직후 되튕김/조기 재진입 방지)
-    const np = performance.now();
-    pinTopUntil = np + 420;
-    pinTopCap   = np + 1400;
-    if (window.introAPI && window.introAPI.suppressReentry) window.introAPI.suppressReentry(650);
+    // 짧은 핸드오프 창: 관성으로 살짝 밀려도 멈추면 card 0으로 스냅(한 번). + 조기 재진입 잠금.
+    handoffUntil = performance.now() + 550;
+    if (window.introAPI && window.introAPI.suppressReentry) window.introAPI.suppressReentry(600);
     // 앞으로가기로 완료된 경우엔 이미 gallery 상태이므로 중복 추가하지 않음
     if (curView() === 'intro') navPush('gallery');
   });
