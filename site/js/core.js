@@ -109,17 +109,20 @@ window.App = (function () {
     const f = Math.min(dt, 50) / HZ60;   // 50ms(≈3프레임)로 상한 → 탭 복귀 점프 방지
 
     // 타이틀 클릭으로 인트로 복귀 (heroReturnFast):
-    //  · 카드 되감기는 거리와 무관하게 "일정 속도"(프레임당 상한). 넘길 카드가 많으면
-    //    그만큼 오래 걸리되 속도감은 균일. 적으면 금방 끝남.
+    //  · 카드 되감기 속도는 진행도에 따라 종(bell) 모양 — 먼 카드/첫 카드 양끝은 느리고
+    //    중간이 빠르다 (ease-in-out). 넘길 카드가 많으면 오래 걸리되 곡선은 동일.
     //  · 인트로 형성(heroP 1→0)은 카드가 첫 장 1칸 이내로 되감겼을 때 시작 → 되감기 꼬리와
     //    겹쳐 이음새(속도 0 구간) 없음.
     const hf = S.heroReturnFast ? f * 2.2 : f;
 
     let cStep = (S.cardTgt - S.cardFrac) * adj(0.115, f * (S.heroReturnFast ? 2.6 : 1));
     if (S.heroReturnFast) {
-      const cap = 1.5 * f;                                  // ≈90 cards/s @60fps
+      const rem   = Math.abs(S.cardTgt - S.cardFrac);
+      const p     = U.clamp(1 - rem / (S.returnFrac || 1), 0, 1);   // 0=먼 카드, 1=첫 카드
+      const shape = Math.min(1, Math.sin(Math.PI * p) * 1.5);       // 양끝 램프 + 중간 평탄
+      const cap   = (0.4 + 1.5 * shape) * f;                        // 0.4~1.9 cards/frame
       if (cStep < -cap) cStep = -cap; else if (cStep > cap) cStep = cap;
-      if (Math.abs(S.cardTgt - S.cardFrac) <= 1.0) S.heroPTgt = 0;   // 첫 장 근처 → 인트로 형성 시작
+      if (rem <= 1.0) S.heroPTgt = 0;   // 첫 장 근처 → 인트로 형성 시작
     }
     S.cardFrac += cStep;
     S.heroP    += (S.heroPTgt - S.heroP) * adj(0.063, hf);

@@ -115,7 +115,8 @@
     try { window.scrollTo(0, 0); } catch (e) {}
     if (window.App && App.S) {
       App.S.cardTgt = 0;                       // cardFrac은 즉시대입 없이 lerp → 카드가 되감기며 빠짐
-      App.S.heroReturnFast = true;             // core.js: 카드 일정속도 되감기 + 근처 오면 heroP 형성
+      App.S.returnFrac = Math.max(1, App.S.cardFrac);   // 되감기 시작 거리 (속도 곡선 기준)
+      App.S.heroReturnFast = true;             // core.js: 종모양 속도 되감기 + 근처 오면 heroP 형성
       // 되감을 카드가 남았으면 heroP는 1 유지(되감기 먼저), 이미 첫 장이면 바로 형성.
       App.S.heroPTgt = (App.S.cardFrac > 1.0) ? 1 : 0;
       App.S.needsDraw = true;
