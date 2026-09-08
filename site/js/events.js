@@ -26,10 +26,8 @@
 
   // 히스토리 이동으로 특정 카드에 착지.
   //  · 스크롤 이벤트가 오기를 기다리지 않고 cardTgt를 직접 지정해 결정적으로 만든다.
-  //  · 맨 위에 닿는 순간 남은 관성으로 인트로 재진입이 걸리는 것을 잠시 막는다.
   //  · behavior:'smooth'는 이동 중 스냅 타이머와 얽히므로 즉시 이동을 쓴다.
   function goCard(i) {
-    if (window.introAPI && window.introAPI.suppressReentry) window.introAPI.suppressReentry(1000);
     S.heroPTgt = 1;
     clearTimeout(S.snapTO);
     cancelSnap();
@@ -47,10 +45,7 @@
     });
   }
 
-  let lastNavAt = 0;   // 마지막 히스토리 이동 시각 — 직후의 오작동 재진입 차단용
-
   addEventListener('popstate', () => {
-    lastNavAt = Date.now();
     const v = curView();
     const i = history.state && history.state.i;
 
@@ -70,28 +65,9 @@
     if (!introActive() && window.introAPI) window.introAPI.toStart();
   });
 
-  // 사용자가 위로 스크롤해 인트로로 되돌아간 경우 히스토리도 맞춰줌.
-  // 단, 뒤로가기로 첫 카드에 막 도착한 직후엔 스크롤이 맨 위에 닿으면서
-  // 관성만으로 재진입이 걸릴 수 있다 → 그 구간은 무시(갤러리를 건너뛰는 원인).
-  //
-  // 리스너는 반드시 하나만 둔다. 예전에 같은 일을 하는 리스너가 둘이었는데,
-  // 같은 디스패치에서 동기로 실행되고 popstate는 비동기라 두 번째도 curView()를
-  // 여전히 'gallery'로 보고 back()을 한 번 더 호출 → intro를 지나쳐 사이트 밖으로
-  // 나가버렸다. back()은 재진입 1회당 최대 1번.
-  addEventListener('intro-reenter', () => {
-    if (Date.now() - lastNavAt < 900) return;
-    const v = curView();
-    if (v === 'intro') return;                  // 이미 인트로 항목 → 그대로 멈춤
-    // gallery는 항상 intro 바로 다음에 push되므로 back() 1회가 정확히 intro다.
-    if (v === 'gallery') { history.back(); return; }
-    // 그 외(card/video 등)에서는 back()이 intro를 지나칠 수 있다.
-    // 현재 항목을 intro로 치환해 사이트 밖으로 나가는 일이 없게 한다.
-    navReplace('intro');
-  });
-
   /* ─── 카드 스냅 ───────────────────────────────────────────────
      예전엔 scrollTo({behavior:'smooth'}) — 브라우저 기본 이징이 길고(≈400ms)
-     조정이 안 돼 늘어지는 느낌. 직접 rAF로 강한 ease-out(≤300ms)을 굴린다.
+     조정이 안 돼 늘어지는 느낌. 직접 rAF로 강한 ease-out을 굴린다.
      사용자 입력(휠/터치/화살표)이 들어오면 즉시 취소해 끊기지 않게. */
   let snapRAF = 0, snapping = false;
   function cancelSnap() { snapping = false; if (snapRAF) cancelAnimationFrame(snapRAF); snapRAF = 0; }
@@ -103,7 +79,7 @@
     cancelSnap();
     snapping = true;
     S.cardTgt = i;                                          // cardFrac이 목표 카드로 수렴
-    const dur = Math.min(300, 130 + Math.abs(dist) * 0.55); // 거리에 비례, 130~300ms
+    const dur = Math.min(210, 90 + Math.abs(dist) * 0.5);   // 90~210ms 강한 ease-out
     const t0 = performance.now();
     const ease = t => 1 - Math.pow(1 - t, 3);
     (function step(now) {
@@ -117,6 +93,28 @@
   addEventListener('wheel',      cancelSnap, { passive: true });
   addEventListener('touchstart', cancelSnap, { passive: true });
 
+  // 좌측 "SUHO SONG" 텍스트 클릭/터치 → 인트로 첫 화면으로.
+  // (카드 화면에서 인트로로 가는 유일한 경로 — 스크롤로는 못 들어감)
+  // 모션: 단일 엔진. scrollY는 즉시 맨 위로(콘텐츠는 fixed라 안 보임) 점프하고,
+  //       cardFrac→0(카드 되감기)과 heroP→0(인트로 형성 + 아래로 스윕아웃)을
+  //       마스터 루프에서 동시에 lerp. 이음새 없음 → 시작 카드 무관하게 같은 속도.
+  (function () {
+    const h1 = document.querySelector('#left h1');
+    if (!h1) return;
+    h1.addEventListener('click', () => {
+      if (introActive()) return;
+      if (isModalOpen()) doClose();
+      cancelSnap();
+      navReplace('intro');                        // 히스토리도 인트로로 (앞으로가기 없어짐)
+      try { scrollTo(0, 0); } catch (e) {}
+      if (window.introAPI && window.introAPI.toStart) window.introAPI.toStart();
+    });
+  })();
+
+  // 인트로 → 첫 카드 핸드오프 직후 잠깐: 관성으로 살짝 밀려도 스냅은 첫 카드로.
+  // (붙잡지 않고 자유 스크롤은 허용 — 멈추면 딱 한 번 card 0으로 스냅)
+  let handoffUntil = 0;
+
   /* ─── scroll ─── */
   addEventListener('scroll', () => {
     // 인트로 복귀 중에는 관성 스크롤이 heroPTgt를 1로 되돌려 인트로를 취소시킬 수 있음
@@ -127,8 +125,10 @@
     S.cardTgt  = clamp(sy / PX_PER_CARD, 0, N - 1);
     S.lastSY = sy;
     clearTimeout(S.snapTO);
-    const delay = S.cardTgt < 0.3 ? 200 : 110;
-    S.snapTO = setTimeout(() => snapTo(S.cardTgt), delay);
+    // 핸드오프 창 안 + 아직 첫 카드 근처면 무조건 card 0으로 스냅(한 번).
+    const toFirst = performance.now() < handoffUntil && S.cardTgt < 1.5;
+    const delay = toFirst ? 90 : (S.cardTgt < 0.3 ? 150 : 80);
+    S.snapTO = setTimeout(() => snapTo(toFirst ? 0 : S.cardTgt), delay);
   }, { passive: true });
 
   /* ─── keyboard (통합: 화살표 + Escape + 모달 스페이스) ─── */
@@ -323,13 +323,17 @@ addEventListener('resize', () => {
 });
   setSH();
 
-  /* ─── intro handoff (재진입 가능하므로 once 아님) ─── */
+  /* ─── intro handoff (SUHO SONG 클릭으로 다시 들어올 수 있으므로 once 아님) ─── */
   addEventListener('intro-done', () => {
     S.introBgActive = false;
     S.heroP = 1; S.heroPTgt = 1;
     // cardFrac은 인트로 동안 0으로 잠겨 있었으므로 리셋·튕김 없음 → 카드 0번에서 자연 시작
+    cancelSnap();
+    S.cardTgt = 0;
     try { scrollTo({ top: 0, behavior: 'instant' }); }
     catch (e) { scrollTo(0, 0); }
+    // 짧은 핸드오프 창: 관성으로 첫 카드 근처까지 밀려도 멈추면 card 0으로 스냅(한 번)
+    handoffUntil = performance.now() + 550;
     // 앞으로가기로 완료된 경우엔 이미 gallery 상태이므로 중복 추가하지 않음
     if (curView() === 'intro') navPush('gallery');
   });

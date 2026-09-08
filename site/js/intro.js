@@ -1,23 +1,19 @@
 // ═══════════════════════════════════════════════════════
-//  INTRO.JS — 잠긴 게이트(locked gate) + 재진입(re-entry)
+//  INTRO.JS — 잠긴 게이트(locked gate)
 //  · document 스크롤은 잠가두고, 입력을 "누적"해 heroP(0→1)만 굴림.
 //    → 인트로 동안 카드는 안 움직임(내려갔다 튕김 제거)
-//  · 핸드오프 후, 카드 0번(맨 위)에서 위로 스크롤하면 인트로로 재진입
-//    → 누적값을 역으로 굴려 인트로가 부드럽게 되돌아옴(역재생)
+//  · 카드 화면으로 넘어온 뒤에는 스크롤로 인트로에 다시 못 들어감.
+//    돌아가려면 좌측 "SUHO SONG" 텍스트 클릭/터치 → introAPI.toStart()
 // ═══════════════════════════════════════════════════════
 (function () {
   let layer, suhoEl, songEl, hintEl;
   let doneFired = false;      // true = 갤러리(카드) 상태
   let engaged = false;        // 인트로 안쪽(heroP<0.9)까지 들어온 적 있음 → 완료 허용
-  let abortFrames = 0;        // prog가 끝(=1)에 머문 프레임 수 → 재진입 취소 감지
+  let abortFrames = 0;        // prog가 끝(=1)에 머문 프레임 수 → (구)취소 감지
   let accum = 0;              // 누적 입력량(px)
   let touchY = null;
   let rafPending = false;
   const eIn3 = t => t * t * t;
-
-  // 재진입 트리거 누적 + 임계값
-  let reAccum = 0, rwTouchY = null;
-  const REENTER_THRESH = 60;
 
   // 인트로 완료에 필요한 누적 스크롤 거리. 작을수록 빨리 끝남.
   // 데스크톱 ≈ 화면 1.1개, 터치 ≈ 0.65개. (예전 1.3×vh 에서 소폭 축소)
@@ -107,74 +103,28 @@
     removeEventListener('keydown', onKey);
   }
 
-  /* ── 재진입 감시: 카드 0번(맨 위)에서 위로 스크롤 시 인트로 복귀 ── */
-  // topAt: 최상단 도달 시각. 도달 직후 350ms는 모멘텀 꼬리(관성 휠/드래그)로 간주하고
-  // 무시 → 카드를 빠르게 위로 넘기다 최상단에 닿았을 때 의도치 않은 재진입 방지.
-  let topAt = 0;
-  let suppressUntil = 0;      // 이 시각 전까지는 재진입 자체를 잠금
-  const TOP_GRACE = 350;
-  function atTopReady() {
-    // 뒤로가기 등으로 프로그램이 맨 위로 이동시킨 직후에는
-    // 남은 관성만으로 재진입이 걸려 갤러리를 건너뛴다.
-    if (performance.now() < suppressUntil) { topAt = 0; reAccum = 0; return false; }
-    if (scrollY > 2) { topAt = 0; return false; }
-    const now = performance.now();
-    if (!topAt) { topAt = now; return false; }
-    return now - topAt > TOP_GRACE;
-  }
-  function rwWheel(e) {
-    if (!doneFired) return;
-    if (!atTopReady()) { reAccum = 0; return; }
-    const dy = normDY(e);
-    if (dy < 0) { reAccum += -dy; if (reAccum >= REENTER_THRESH) reenter(); }
-    else reAccum = 0;
-  }
-  function rwTouchStart(e) { rwTouchY = e.touches[0].clientY; reAccum = 0; }
-  function rwTouchMove(e) {
-    if (!doneFired) return;
-    if (!atTopReady()) { rwTouchY = e.touches[0].clientY; return; }
-    const y = e.touches[0].clientY;
-    if (rwTouchY !== null) {
-      const dy = y - rwTouchY;                 // 손가락 아래로 = 위로 스크롤 의도
-      if (dy > 0) { reAccum += dy; if (reAccum >= REENTER_THRESH) reenter(); }
-    }
-    rwTouchY = y;
-  }
-  function startReentryWatch() {
-    reAccum = 0; rwTouchY = null;
-    topAt = scrollY <= 2 ? performance.now() : 0;  // 핸드오프 직후는 최상단
-    addEventListener('wheel',      rwWheel,      { passive: true });
-    addEventListener('touchstart', rwTouchStart, { passive: true });
-    addEventListener('touchmove',  rwTouchMove,  { passive: true });
-  }
-  function stopReentryWatch() {
-    removeEventListener('wheel', rwWheel);
-    removeEventListener('touchstart', rwTouchStart);
-    removeEventListener('touchmove', rwTouchMove);
-  }
-
-  function reenter() {
-    stopReentryWatch();
-    dispatchEvent(new Event('intro-reenter'));
+  // 인트로 첫 화면으로 (좌측 "SUHO SONG" 클릭 / 히스토리 popstate 에서 호출)
+  function enterIntro() {
     doneFired = false;
     engaged = false;
     abortFrames = 0;
-    // 1.0이 아닌 0.75 지점에서 시작: UI가 페이드아웃되고 카드가 살짝 어두워져
-    // "재진입이 걸렸다"는 피드백이 즉시 보임. (1.0 시작이면 스와이프 2~3번까지
-    // 화면 변화가 전혀 없어 재진입이 죽은 것처럼 느껴짐)
-    accum = introDist() * 0.75;
+    accum = 0;
     touchY = null;
     try { window.scrollTo(0, 0); } catch (e) {}
-    if (window.App && App.S) App.S.heroPTgt = accum / introDist();
+    if (window.App && App.S) {
+      App.S.heroPTgt = 0;
+      App.S.cardTgt = 0;                       // cardFrac은 즉시대입 없이 lerp → 카드가 되감기며 빠짐
+      App.S.heroReturnFast = true;             // heroP·cardFrac 수렴을 빠르게 (core.js)
+      App.S.needsDraw = true;
+    }
     document.body.classList.add('intro-active');
     addInputListeners();
   }
 
-  // 핸드오프(완료) — 잠금 해제 + 입력 리스너 제거 + 재진입 감시 시작
+  // 핸드오프(완료) — 잠금 해제 + 입력 리스너 제거
   function teardown() {
     document.body.classList.remove('intro-active');
     removeInputListeners();
-    startReentryWatch();
   }
 
   window.introLayerUpdate = function (hP) {
@@ -191,8 +141,11 @@
     if (hP >= 0.95 && (engaged || abortFrames > 10)) {
       layer.style.display = 'none';
       doneFired = true; engaged = false;
-      teardown();
       dispatchEvent(new Event('intro-done'));
+      // 스크롤 잠금은 250ms 더 유지 → 인트로를 세게 끝냈을 때 남은 관성이
+      // 문서로 새어 두 번째 카드로 밀려버리는 것을 막는다. 그동안 onWheel이
+      // preventDefault + (accum 포화라)no-op 로 관성을 삼킨다.
+      setTimeout(teardown, 250);
       return;
     }
     layer.style.display = '';
@@ -232,23 +185,10 @@
     }, 80);
   }
 
-  // 히스토리 내비게이션에서 인트로 상태를 제어하기 위한 최소 API
+  // 외부(events.js) 제어용 최소 API
   window.introAPI = {
-    reenter: reenter,                        // 스크롤 재진입 (75% 지점에서 시작)
     complete: () => addInput(introDist()),   // 인트로 → 갤러리 (부드럽게 완료)
-    // 뒤로가기로 돌아올 때는 인트로를 처음(0%)부터 보여줘야 한다.
-    // reenter()의 75% 시작점은 "계속 위로 스크롤 중"을 전제한 값이라
-    // 그대로 쓰면 글자가 이미 사라진 상태로 보인다.
-    toStart: () => {
-      reenter();
-      accum = 0;
-      if (window.App && App.S) App.S.heroPTgt = 0;
-    },
-    // 히스토리 이동 직후 관성으로 인한 오작동 재진입을 잠시 막는다
-    suppressReentry: (ms) => {
-      suppressUntil = performance.now() + (ms || 900);
-      reAccum = 0; topAt = 0; rwTouchY = null;
-    },
+    toStart: enterIntro,                      // 갤러리/카드 → 인트로 첫 화면
     isActive: () => !doneFired,
   };
 

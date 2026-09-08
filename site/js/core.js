@@ -108,8 +108,14 @@ window.App = (function () {
     lastT = now;
     const f = Math.min(dt, 50) / HZ60;   // 50ms(≈3프레임)로 상한 → 탭 복귀 점프 방지
 
-    S.heroP    += (S.heroPTgt - S.heroP)    * adj(0.063, f);
-    S.cardFrac += (S.cardTgt  - S.cardFrac) * adj(0.115, f);
+    // 타이틀 클릭으로 인트로 복귀 시: heroP 수렴 1.5배, cardFrac(카드 되감기) 수렴도 가속.
+    // 둘을 한 프레임 안에서 같이 굴려 이음새 없는 단일 모션으로. (인트로→카드 방향은 그대로)
+    const hf = S.heroReturnFast ? f * 1.5 : f;
+    const cf = S.heroReturnFast ? f * 2.6 : f;
+    if (S.heroReturnFast && (S.heroP <= 0.001 || S.heroPTgt > 0.02)) S.heroReturnFast = false;
+
+    S.heroP    += (S.heroPTgt - S.heroP)    * adj(0.063, hf);
+    S.cardFrac += (S.cardTgt  - S.cardFrac) * adj(0.115, cf);
     if (Math.abs(S.heroPTgt - S.heroP)    < .0003) S.heroP    = S.heroPTgt;
     if (Math.abs(S.cardTgt  - S.cardFrac) < .0003) S.cardFrac = S.cardTgt;
 

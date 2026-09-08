@@ -174,8 +174,12 @@
       lastCW = CW; lastCH = CH;
     }
 
-    const introOff   = (1 - eOut4(hP)) * CDEG;
-    const cardReveal = hP < 0.55 ? 0 : eOut4((hP - 0.55) / 0.45);
+    // 인트로↔카드 스윕 각도. 전진(intro→card)은 +방향(위에서 아래로 들어옴),
+    // 타이틀 클릭 복귀는 -방향 → 카드가 아래로 계속 스크롤되듯 프레임 밖으로 빠짐.
+    const introOff   = (1 - eOut4(hP)) * CDEG * (S.heroReturnFast ? -1 : 1);
+    // 복귀 시엔 카드를 늦게까지 보여줘서 빠져나가는 게 보이게 한다 (전진 땐 0.55 그대로).
+    const revStart   = S.heroReturnFast ? 0.15 : 0.55;
+    const cardReveal = hP < revStart ? 0 : eOut4((hP - revStart) / (1 - revStart));
     const uiReveal   = hP < 0.85 ? 0 : eOut3((hP - 0.85) / 0.15);
 
     for (let i = 0; i < N; i++) {
