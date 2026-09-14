@@ -33,9 +33,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # workflow_run(head_sha)은 build-pdf를 "트리거한" 커밋이라 build-pdf가 그 뒤에
+      # 새로 커밋한 PDF보다 한 커밋 뒤처진다. 그래서 workflow_run일 땐 head_sha 대신
+      # 브랜치 최신(head_branch)을 체크아웃해 새 PDF 커밋까지 포함시킨다.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.event.workflow_run.head_branch || github.sha }}
 
       - name: Upload site/ artifact
         uses: actions/upload-pages-artifact@v3
