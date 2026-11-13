@@ -1,5 +1,6 @@
 /* ══ fonts ══ */
 @font-face{font-family:'REATIC';src:url('../fonts/REATIC-Regular.otf') format('opentype');font-weight:400;font-style:normal;font-display:swap;}
+@font-face{font-family:'REATIC';src:url('../fonts/REATIC-Bold.otf') format('opentype');font-weight:700;font-style:normal;font-display:swap;}
 
 /* ══ tokens ══ */
 :root{
@@ -46,11 +47,11 @@ body{background:var(--bg);font-family:sans-serif;-webkit-font-smoothing:antialia
 body:not(.intro-active) #left h1{pointer-events:auto;cursor:pointer;transition:opacity .18s ease;}
 body:not(.intro-active) #left h1:active{opacity:.62;}
 @media(hover:hover){body:not(.intro-active) #left h1:hover{opacity:.62;}}
-#left .sub{font-family:'Bebas Neue',cursive;font-size:26px;letter-spacing:.04em;color:var(--text-strong);margin-top:6px;
+#left .sub{font-family:'Bebas Neue',cursive;font-size:26px;letter-spacing:.04em;color:var(--text-strong);margin-top:6px;line-height:1;
   text-shadow:0 0 10px rgba(240,237,232,.22),0 0 28px rgba(240,237,232,.07);}
-#left .tag{font-family:'REATIC',monospace;font-size:15px;font-weight:400;letter-spacing:.14em;text-transform:uppercase;color:var(--text-tag);margin-top:16px;display:block;
+#left .tag{font-family:'REATIC',monospace;font-size:15px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-tag);margin-top:10px;line-height:1;display:block;
   text-shadow:0 0 8px rgba(200,196,190,.18);}
-#left .ig{font-family:'Inter',monospace;font-size:14px;letter-spacing:.1em;color:var(--text-link);text-decoration:underline;margin-top:8px;display:block;pointer-events:auto;transition:color .2s;
+#left .ig{font-family:'Inter',monospace;font-size:14px;letter-spacing:.1em;color:var(--text-link);text-decoration:underline;margin-top:10px;line-height:1;display:block;pointer-events:auto;transition:color .2s;
   text-shadow:0 0 8px rgba(168,163,154,.15);}
 #left .ig:hover{color:var(--text-link-hover);}
 #left .desc{margin-top:12px;display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
